@@ -209,17 +209,17 @@ const solidTypedRoutesPlugin = (options) => {
   const resolvedOptions = resolveOptions(options);
   generateTypedRoutes(resolvedOptions);
   return {
-    name: "solid-typed-routes"
-    // buildStart() {
-    //   generateTypedRoutes(resolvedOptions)
-    // },
-    // watchChange(changePath) {
-    //   const relative = path.relative(resolvedOptions.routesPath, changePath)
-    //   const isRoute = relative && !relative.startsWith('..') && !path.isAbsolute(relative)
-    //   if (isRoute) {
-    //     generateTypedRoutes(resolvedOptions)
-    //   }
-    // },
+    name: "solid-typed-routes",
+    buildStart() {
+      generateTypedRoutes(resolvedOptions);
+    },
+    watchChange(changePath) {
+      const relative = path.relative(resolvedOptions.routesPath, changePath);
+      const isRoute = relative && !relative.startsWith("..") && !path.isAbsolute(relative);
+      if (isRoute) {
+        generateTypedRoutes(resolvedOptions);
+      }
+    }
   };
 };
 

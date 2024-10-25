@@ -337,6 +337,28 @@ const generateTypedRoutes = async (resolvedOptions: Required<TypedRoutesOptions>
   }
 }
 
+/**
+ * A Vite plugin for generating typed routes for Solid applications.
+ *
+ * @param {TypedRoutesOptions} options - The options for configuring the typed routes.
+ * @returns {Plugin} The configured Vite plugin.
+ *
+ * @example
+ * ```typescript
+ * import { solidTypedRoutesPlugin } from './vite-plugin';
+ *
+ * export default {
+ *   plugins: [solidTypedRoutesPlugin({ /* options *\/ })],
+ * };
+ * ```
+ *
+ * @remarks
+ * This plugin generates typed routes based on the provided options and regenerates them
+ * whenever there are changes in the route files.
+ *
+ * @function
+ * @name solidTypedRoutesPlugin
+ */
 export const solidTypedRoutesPlugin = (options: TypedRoutesOptions) => {
   const resolvedOptions = resolveOptions(options)
 
