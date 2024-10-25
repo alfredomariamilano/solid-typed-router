@@ -32,7 +32,7 @@ const bundle = config => ({
   ...config,
 })
 
-const esbuildPlugin = esbuild({ target: 'es6' })
+const esbuildPlugin = esbuild({ target: 'esnext' })
 
 // const esbuildPluginCommonJS = esbuild({ target: 'es6' })
 
