@@ -4,8 +4,6 @@
   "description": "",
   "type": "module",
   "scripts": {
-    "postinstall": "cd ./app && npm install",
-    "dev": "cd ./app && npm run dev",
     "build": "rollup -c"
   },
   "source": "src/index.ts",
