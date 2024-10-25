@@ -45,9 +45,22 @@ function defineRoutes(fileRoutes) {
     return routes;
   }
   return fileRoutes.sort((a, b) => a.path.length - b.path.length).reduce((prevRoutes, route) => {
+    route.info = route.info || {};
+    route.info.id = route.info.id || route.path;
     return processRoute(prevRoutes, route, route.info.id, route.path);
   }, []);
 }
+const findNodeModules = (root) => {
+  const nodeModulesPath = path.resolve(root, "node_modules");
+  if (fs.existsSync(nodeModulesPath)) {
+    return nodeModulesPath;
+  }
+  const parentDir = path.resolve(root, "..");
+  if (parentDir === root) {
+    return;
+  }
+  return findNodeModules(parentDir);
+};
 const outputFileTemplatePath = path.resolve(
   undefined,
   "..",
@@ -68,18 +81,32 @@ const generateTypedRoutes = async (resolvedOptions) => {
     }
     if (routesDefinitions.length <= 0) {
       try {
-        const require$1 = node_module.createRequire(root);
-        const solidStartConfigPath = path.dirname(require$1.resolve("@solidjs/start/config"));
-        const fileSysteRouterPath = node_url.pathToFileURL(
-          path.resolve(solidStartConfigPath, "fs-router.js")
-        ).pathname;
-        const { SolidStartServerFileRouter } = await import(fileSysteRouterPath);
-        const nodeModulesPath = solidStartConfigPath.split("node_modules")[0] + "node_modules";
-        const vinxiPath = path.resolve(nodeModulesPath, "vinxi");
-        const routesPluginPath = node_url.pathToFileURL(
-          path.resolve(vinxiPath, "lib/plugins/routes.js")
-        ).pathname;
-        const { routes: routesPluginInit } = await import(routesPluginPath);
+        let SolidStartServerFileRouter;
+        let routesPluginInit;
+        try {
+          const require$1 = node_module.createRequire(root);
+          const solidStartConfigPath = path.dirname(require$1.resolve("@solidjs/start/config"));
+          const fileSysteRouterPath = node_url.pathToFileURL(
+            path.resolve(solidStartConfigPath, "fs-router.js")
+          ).pathname;
+          SolidStartServerFileRouter = (await import(fileSysteRouterPath)).SolidStartServerFileRouter;
+          const nodeModulesPath = solidStartConfigPath.split("node_modules")[0] + "node_modules";
+          const vinxiPath = path.resolve(nodeModulesPath, "vinxi");
+          const routesPluginPath = node_url.pathToFileURL(
+            path.resolve(vinxiPath, "lib/plugins/routes.js")
+          ).pathname;
+          routesPluginInit = (await import(routesPluginPath)).routes;
+        } catch {
+          const nodeModulesPath = findNodeModules(root) || root;
+          const fileSysteRouterPath = node_url.pathToFileURL(
+            path.resolve(nodeModulesPath, "@solidjs/start/config/fs-router.js")
+          ).pathname;
+          SolidStartServerFileRouter = (await import(fileSysteRouterPath)).SolidStartServerFileRouter;
+          const routesPluginPath = node_url.pathToFileURL(
+            path.resolve(nodeModulesPath, "vinxi/lib/plugins/routes.js")
+          ).pathname;
+          routesPluginInit = (await import(routesPluginPath)).routes;
+        }
         const fileRouter = new SolidStartServerFileRouter(
           {
             dir: routesPath,
@@ -184,17 +211,17 @@ const solidTypedRoutesPlugin = (options) => {
   const resolvedOptions = resolveOptions(options);
   generateTypedRoutes(resolvedOptions);
   return {
-    name: "solid-typed-routes",
-    buildStart() {
-      generateTypedRoutes(resolvedOptions);
-    },
-    watchChange(changePath) {
-      const relative = path.relative(resolvedOptions.routesPath, changePath);
-      const isRoute = relative && !relative.startsWith("..") && !path.isAbsolute(relative);
-      if (isRoute) {
-        generateTypedRoutes(resolvedOptions);
-      }
-    }
+    name: "solid-typed-routes"
+    // buildStart() {
+    //   generateTypedRoutes(resolvedOptions)
+    // },
+    // watchChange(changePath) {
+    //   const relative = path.relative(resolvedOptions.routesPath, changePath)
+    //   const isRoute = relative && !relative.startsWith('..') && !path.isAbsolute(relative)
+    //   if (isRoute) {
+    //     generateTypedRoutes(resolvedOptions)
+    //   }
+    // },
   };
 };
 

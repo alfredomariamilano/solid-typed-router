@@ -61,7 +61,7 @@ export default [
         compact: false,
       },
       {
-        file: `${distOutputPath}.js`,
+        file: `${distOutputPath}.mjs`,
         format: 'esm',
         sourcemap: false,
         compact: false,

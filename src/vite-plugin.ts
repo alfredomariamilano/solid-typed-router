@@ -82,8 +82,27 @@ function defineRoutes(fileRoutes: RouteDefinition[]) {
   return fileRoutes
     .sort((a, b) => a.path.length - b.path.length)
     .reduce((prevRoutes, route) => {
+      route.info = route.info || {}
+      route.info.id = route.info.id || route.path
+
       return processRoute(prevRoutes, route, route.info!.id, route.path)
     }, [] as RouteDefinition[])
+}
+
+const findNodeModules = (root: string) => {
+  const nodeModulesPath = path.resolve(root, 'node_modules')
+
+  if (fs.existsSync(nodeModulesPath)) {
+    return nodeModulesPath
+  }
+
+  const parentDir = path.resolve(root, '..')
+
+  if (parentDir === root) {
+    return
+  }
+
+  return findNodeModules(parentDir)
 }
 
 const outputFileTemplatePath = path.resolve(
@@ -113,25 +132,46 @@ const generateTypedRoutes = async (resolvedOptions: Required<TypedRoutesOptions>
 
     if (routesDefinitions.length <= 0) {
       try {
-        const require = createRequire(root)
+        let SolidStartServerFileRouter!: any
+        let routesPluginInit!: any
 
-        const solidStartConfigPath = path.dirname(require.resolve('@solidjs/start/config'))
+        try {
+          const require = createRequire(root)
 
-        const fileSysteRouterPath = pathToFileURL(
-          path.resolve(solidStartConfigPath, 'fs-router.js'),
-        ).pathname
+          const solidStartConfigPath = path.dirname(require.resolve('@solidjs/start/config'))
 
-        const { SolidStartServerFileRouter } = await import(fileSysteRouterPath)
+          const fileSysteRouterPath = pathToFileURL(
+            path.resolve(solidStartConfigPath, 'fs-router.js'),
+          ).pathname
 
-        const nodeModulesPath = solidStartConfigPath.split('node_modules')[0] + 'node_modules'
+          SolidStartServerFileRouter = (await import(fileSysteRouterPath))
+            .SolidStartServerFileRouter
 
-        const vinxiPath = path.resolve(nodeModulesPath, 'vinxi')
+          const nodeModulesPath = solidStartConfigPath.split('node_modules')[0] + 'node_modules'
 
-        const routesPluginPath = pathToFileURL(
-          path.resolve(vinxiPath, 'lib/plugins/routes.js'),
-        ).pathname
+          const vinxiPath = path.resolve(nodeModulesPath, 'vinxi')
 
-        const { routes: routesPluginInit } = await import(routesPluginPath)
+          const routesPluginPath = pathToFileURL(
+            path.resolve(vinxiPath, 'lib/plugins/routes.js'),
+          ).pathname
+
+          routesPluginInit = (await import(routesPluginPath)).routes
+        } catch {
+          const nodeModulesPath = findNodeModules(root) || root
+
+          const fileSysteRouterPath = pathToFileURL(
+            path.resolve(nodeModulesPath, '@solidjs/start/config/fs-router.js'),
+          ).pathname
+
+          SolidStartServerFileRouter = (await import(fileSysteRouterPath))
+            .SolidStartServerFileRouter
+
+          const routesPluginPath = pathToFileURL(
+            path.resolve(nodeModulesPath, 'vinxi/lib/plugins/routes.js'),
+          ).pathname
+
+          routesPluginInit = (await import(routesPluginPath)).routes
+        }
 
         const fileRouter = new SolidStartServerFileRouter(
           {
@@ -315,5 +355,5 @@ export const solidTypedRoutesPlugin = (options: TypedRoutesOptions) => {
         generateTypedRoutes(resolvedOptions)
       }
     },
-  } as const satisfies Plugin
+  } satisfies Plugin
 }

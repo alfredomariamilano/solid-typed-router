@@ -1,5 +1,5 @@
-import * as rollup from 'rollup';
 import { RouteDefinition } from '@solidjs/router';
+import { Plugin } from 'vite';
 
 type TypedRoutesOptions = {
     routesDefinitions?: RouteDefinition[];
@@ -11,10 +11,6 @@ type TypedRoutesOptions = {
     dotReplacement?: string;
     dashReplacement?: string;
 };
-declare const solidTypedRoutesPlugin: (options: TypedRoutesOptions) => {
-    readonly name: "solid-typed-routes";
-    readonly buildStart: (this: rollup.PluginContext) => void;
-    readonly watchChange: (this: rollup.PluginContext, changePath: string) => void;
-};
+declare const solidTypedRoutesPlugin: (options: TypedRoutesOptions) => Plugin;
 
 export { solidTypedRoutesPlugin };
