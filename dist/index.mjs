@@ -9,12 +9,18 @@ const DEFAULTS = {
   routesPath: "src/routes",
   outputPath: "src/typedRoutes.gen.ts",
   routesDefinitions: [],
-  // biome-ignore format: allow dollar signs
   dynamicParamsPrefix: "$",
-  // biome-ignore format: allow dollar signs
   dynamicCatchAllParamsPrefix: "$$",
   dotReplacement: "_dot_",
-  dashReplacement: "_dash_"
+  dashReplacement: "_dash_",
+  plusReplacement: "_plus_",
+  replacements: {
+    ":": "$",
+    "*": "$$",
+    ".": "_dot_",
+    "-": "_dash_",
+    "+": "_plus_"
+  }
 };
 const resolveOptions = (options) => {
   const resolvedOptions = Object.assign({}, DEFAULTS, options);
@@ -170,7 +176,7 @@ const generateTypedRoutes = async (resolvedOptions) => {
               //     .split('*')
               //     .join(resolvedOptions.dynamicCatchAllParamsPrefix),
               // ),
-              param.split(":").join(resolvedOptions.dynamicParamsPrefix).split("*").join(resolvedOptions.dynamicCatchAllParamsPrefix).split(".").join(resolvedOptions.dotReplacement).split("-").join(resolvedOptions.dashReplacement)
+              param.split(":").join(resolvedOptions.dynamicParamsPrefix).split("*").join(resolvedOptions.dynamicCatchAllParamsPrefix).split(".").join(resolvedOptions.dotReplacement).split("-").join(resolvedOptions.dashReplacement).split("+").join(resolvedOptions.plusReplacement)
             );
           }
         }
@@ -205,15 +211,31 @@ const generateTypedRoutes = async (resolvedOptions) => {
     isRunning = false;
   }
 };
-const solidTypedRoutesPlugin = (options) => {
+const pluginFilesDir = path.resolve(import.meta.dirname, "..");
+const solidTypedRoutesPlugin = (options = DEFAULTS) => {
+  const pluginDev = !!process.env.PLUGIN_DEV;
+  pluginDev && console.log("Development mode of the plugin");
   const resolvedOptions = resolveOptions(options);
   generateTypedRoutes(resolvedOptions);
   return {
     name: "solid-typed-routes",
+    api: "serve",
     buildStart() {
+      console.log("buildStart");
+      pluginDev && this.addWatchFile(pluginFilesDir);
       generateTypedRoutes(resolvedOptions);
     },
+    // configureServer(server) {
+    //   pluginDev && server.watcher.add(pluginFilesDir)
+    // },
     watchChange(changePath) {
+      if (pluginDev) {
+        const pluginRelative = path.relative(pluginFilesDir, changePath);
+        const isPluginFile = pluginRelative && !pluginRelative.startsWith("..") && !path.isAbsolute(pluginRelative);
+        if (isPluginFile) {
+          return generateTypedRoutes(resolvedOptions);
+        }
+      }
       const relative = path.relative(resolvedOptions.routesPath, changePath);
       const isRoute = relative && !relative.startsWith("..") && !path.isAbsolute(relative);
       if (isRoute) {

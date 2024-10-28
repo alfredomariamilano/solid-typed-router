@@ -1,20 +1,70 @@
 import * as rollup from 'rollup';
 import { RouteDefinition } from '@solidjs/router';
 
+type Replacements = {
+    ':': string;
+    '*': string;
+    '.': string;
+    '-': string;
+    '+': string;
+    [key: string]: string;
+};
 type TypedRoutesOptions = {
+    /**
+     * Array of route definitions.
+     * @default []
+     */
     routesDefinitions?: RouteDefinition[];
+    /**
+     * The root directory of the project. If it's not an absolute path, it will be resolved relative to process.cwd().
+     * @default process.cwd()
+     */
     root?: string;
+    /**
+     * The path to the routes directory. If it's not an absolute path, it will be resolved relative to options.root or process.cwd().
+     * @default 'src/routes'
+     */
     routesPath?: string;
+    /**
+     * The path to the output file. If it's not an absolute path, it will be resolved relative to options.root or process.cwd().
+     * @default 'src/typedRoutes.gen.ts'
+     */
     outputPath?: string;
+    /**
+     * Prefix for dynamic parameters in routes.
+     * @default '$'
+     */
     dynamicParamsPrefix?: string;
+    /**
+     * Prefix for dynamic catch-all parameters in routes.
+     * @default '$$'
+     */
     dynamicCatchAllParamsPrefix?: string;
+    /**
+     * Replacement string for dots in route parameters.
+     * @default '_dot_'
+     */
     dotReplacement?: string;
+    /**
+     * Replacement string for dashes in route parameters.
+     * @default '_dash_'
+     */
     dashReplacement?: string;
+    /**
+     * Replacement string for plus signs in route parameters.
+     * @default '_plus_'
+     */
+    plusReplacement?: string;
+    /**
+     * Custom replacements for route parameters and route names.
+     * @default { ':': '$', '*': '$$', '.': '_dot_', '-': '_dash_', '+': '_plus_' }
+     */
+    replacements?: Replacements;
 };
 /**
  * A Vite plugin for generating typed routes for Solid applications.
  *
- * @param {TypedRoutesOptions} options - The options for configuring the typed routes.
+ * @param {TypedRoutesOptions} [options] - The options for configuring the typed routes.
  * @returns {Plugin} The configured Vite plugin.
  *
  * @example
@@ -33,10 +83,11 @@ type TypedRoutesOptions = {
  * @function
  * @name solidTypedRoutesPlugin
  */
-declare const solidTypedRoutesPlugin: (options: TypedRoutesOptions) => {
+declare const solidTypedRoutesPlugin: (options?: TypedRoutesOptions) => {
     name: string;
+    api: string;
     buildStart(this: rollup.PluginContext): void;
-    watchChange(this: rollup.PluginContext, changePath: string): void;
+    watchChange(this: rollup.PluginContext, changePath: string): Promise<void>;
 };
 
 export { solidTypedRoutesPlugin };

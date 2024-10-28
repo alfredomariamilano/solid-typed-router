@@ -10,13 +10,14 @@
 
 import { A, type NavigateOptions, type RouteDefinition, useNavigate } from '@solidjs/router'
 // import { A, useNavigate } from '@solidjs/router'
-import { lazy, splitProps } from 'solid-js'
+import { type ComponentProps, type JSX, lazy, splitProps } from 'solid-js'
 
 export const dynamicParamsPrefix = '$$$dynamicParamsPrefix$$$'
 export const dynamicCatchAllParamsPrefix = '$$$dynamicCatchAllParamsPrefix$$$'
 
 export const dotReplacement = '$$$dotReplacement$$$'
 export const dashReplacement = '$$$dashReplacement$$$'
+export const plusReplacement = '$$$plusReplacement$$$'
 
 export const routes = $$$routes$$$ as const satisfies RouteDefinition[]
 
@@ -49,10 +50,6 @@ interface TypedNavigator {
   (delta: number): void
 }
 
-function camelToDashed(str: string) {
-  return str.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`)
-}
-
 export const getTypedRoute = <T extends TypedRoutes>(
   href: T,
   params: T extends DynamicTypedRoutes ? Pick<DynamicTypedRouteParams<T>, 'params'> : never,
@@ -61,7 +58,7 @@ export const getTypedRoute = <T extends TypedRoutes>(
 
   if (params) {
     Object.keys(params).forEach(key => {
-      const dynamicParamKey: keyof DynamicTypedRouteParams<T>['params'] = camelToDashed(key)
+      const dynamicParamKey: keyof DynamicTypedRouteParams<T>['params'] = key
         .split(dynamicCatchAllParamsPrefix)
         .join('*')
         .split(dynamicParamsPrefix)
@@ -70,6 +67,8 @@ export const getTypedRoute = <T extends TypedRoutes>(
         .join('.')
         .split(dashReplacement)
         .join('-')
+        .split(plusReplacement)
+        .join('+')
 
       parsedLink = parsedLink.split(dynamicParamKey).join(params[key])
     })

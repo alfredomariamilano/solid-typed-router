@@ -9,15 +9,66 @@ import type { Plugin } from 'vite'
 // import { defineConfig, mergeConfig } from 'vitest/config'
 // import { tanstackViteConfig } from '@tanstack/config/vite'
 
+type Replacements = {
+  ':': string
+  '*': string
+  '.': string
+  '-': string
+  '+': string
+  [key: string]: string
+}
+
 type TypedRoutesOptions = {
+  /**
+   * Array of route definitions.
+   * @default []
+   */
   routesDefinitions?: RouteDefinition[]
+  /**
+   * The root directory of the project. If it's not an absolute path, it will be resolved relative to process.cwd().
+   * @default process.cwd()
+   */
   root?: string
+  /**
+   * The path to the routes directory. If it's not an absolute path, it will be resolved relative to options.root or process.cwd().
+   * @default 'src/routes'
+   */
   routesPath?: string
+  /**
+   * The path to the output file. If it's not an absolute path, it will be resolved relative to options.root or process.cwd().
+   * @default 'src/typedRoutes.gen.ts'
+   */
   outputPath?: string
+  /**
+   * Prefix for dynamic parameters in routes.
+   * @default '$'
+   */
   dynamicParamsPrefix?: string
+  /**
+   * Prefix for dynamic catch-all parameters in routes.
+   * @default '$$'
+   */
   dynamicCatchAllParamsPrefix?: string
+  /**
+   * Replacement string for dots in route parameters.
+   * @default '_dot_'
+   */
   dotReplacement?: string
+  /**
+   * Replacement string for dashes in route parameters.
+   * @default '_dash_'
+   */
   dashReplacement?: string
+  /**
+   * Replacement string for plus signs in route parameters.
+   * @default '_plus_'
+   */
+  plusReplacement?: string
+  /**
+   * Custom replacements for route parameters and route names.
+   * @default { ':': '$', '*': '$$', '.': '_dot_', '-': '_dash_', '+': '_plus_' }
+   */
+  replacements?: Replacements
 }
 
 const DEFAULTS: Partial<TypedRoutesOptions> = {
@@ -25,13 +76,19 @@ const DEFAULTS: Partial<TypedRoutesOptions> = {
   routesPath: 'src/routes',
   outputPath: 'src/typedRoutes.gen.ts',
   routesDefinitions: [],
-  // biome-ignore format: allow dollar signs
-  dynamicParamsPrefix: '\$',
-  // biome-ignore format: allow dollar signs
-  dynamicCatchAllParamsPrefix: '\$\$',
+  dynamicParamsPrefix: '$',
+  dynamicCatchAllParamsPrefix: '$$',
   dotReplacement: '_dot_',
   dashReplacement: '_dash_',
-}
+  plusReplacement: '_plus_',
+  replacements: {
+    ':': '$',
+    '*': '$$',
+    '.': '_dot_',
+    '-': '_dash_',
+    '+': '_plus_',
+  },
+} as const
 
 const resolveOptions = (options: TypedRoutesOptions): Required<TypedRoutesOptions> => {
   const resolvedOptions = Object.assign({}, DEFAULTS, options) as Required<TypedRoutesOptions>
@@ -292,7 +349,9 @@ const generateTypedRoutes = async (resolvedOptions: Required<TypedRoutesOptions>
                   .split('.')
                   .join(resolvedOptions.dotReplacement)
                   .split('-')
-                  .join(resolvedOptions.dashReplacement),
+                  .join(resolvedOptions.dashReplacement)
+                  .split('+')
+                  .join(resolvedOptions.plusReplacement),
               )
             }
           }
@@ -337,10 +396,12 @@ const generateTypedRoutes = async (resolvedOptions: Required<TypedRoutesOptions>
   }
 }
 
+const pluginFilesDir = path.resolve(import.meta.dirname, '..')
+
 /**
  * A Vite plugin for generating typed routes for Solid applications.
  *
- * @param {TypedRoutesOptions} options - The options for configuring the typed routes.
+ * @param {TypedRoutesOptions} [options] - The options for configuring the typed routes.
  * @returns {Plugin} The configured Vite plugin.
  *
  * @example
@@ -359,17 +420,39 @@ const generateTypedRoutes = async (resolvedOptions: Required<TypedRoutesOptions>
  * @function
  * @name solidTypedRoutesPlugin
  */
-export const solidTypedRoutesPlugin = (options: TypedRoutesOptions) => {
+export const solidTypedRoutesPlugin = (options: TypedRoutesOptions = DEFAULTS) => {
+  const pluginDev = !!process.env.PLUGIN_DEV
+
+  pluginDev && console.log('Development mode of the plugin')
+
   const resolvedOptions = resolveOptions(options)
 
   generateTypedRoutes(resolvedOptions)
 
   return {
     name: 'solid-typed-routes',
+    api: 'serve',
     buildStart() {
+      console.log('buildStart')
+
+      pluginDev && this.addWatchFile(pluginFilesDir)
+
       generateTypedRoutes(resolvedOptions)
     },
+    // configureServer(server) {
+    //   pluginDev && server.watcher.add(pluginFilesDir)
+    // },
     watchChange(changePath) {
+      if (pluginDev) {
+        const pluginRelative = path.relative(pluginFilesDir, changePath)
+        const isPluginFile =
+          pluginRelative && !pluginRelative.startsWith('..') && !path.isAbsolute(pluginRelative)
+
+        if (isPluginFile) {
+          return generateTypedRoutes(resolvedOptions)
+        }
+      }
+
       const relative = path.relative(resolvedOptions.routesPath, changePath)
       const isRoute = relative && !relative.startsWith('..') && !path.isAbsolute(relative)
 
