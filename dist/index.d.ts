@@ -1,5 +1,6 @@
 import * as rollup from 'rollup';
 import { RouteDefinition } from '@solidjs/router';
+import { BaseSchema, BaseIssue } from 'valibot';
 
 type Replacements = {
     ':': string;
@@ -16,6 +17,10 @@ type TypedRoutesOptions = {
      */
     routesDefinitions?: RouteDefinition[];
     /**
+     * Defintion of the search params schemas.
+     */
+    searchParamsSchemas?: Record<string, BaseSchema<unknown, unknown, BaseIssue<unknown>>>;
+    /**
      * The root directory of the project. If it's not an absolute path, it will be resolved relative to process.cwd().
      * @default process.cwd()
      */
@@ -30,31 +35,6 @@ type TypedRoutesOptions = {
      * @default 'src/typedRoutes.gen.ts'
      */
     outputPath?: string;
-    /**
-     * Prefix for dynamic parameters in routes.
-     * @default '$'
-     */
-    dynamicParamsPrefix?: string;
-    /**
-     * Prefix for dynamic catch-all parameters in routes.
-     * @default '$$'
-     */
-    dynamicCatchAllParamsPrefix?: string;
-    /**
-     * Replacement string for dots in route parameters.
-     * @default '_dot_'
-     */
-    dotReplacement?: string;
-    /**
-     * Replacement string for dashes in route parameters.
-     * @default '_dash_'
-     */
-    dashReplacement?: string;
-    /**
-     * Replacement string for plus signs in route parameters.
-     * @default '_plus_'
-     */
-    plusReplacement?: string;
     /**
      * Custom replacements for route parameters and route names.
      * @default { ':': '$', '*': '$$', '.': '_dot_', '-': '_dash_', '+': '_plus_' }

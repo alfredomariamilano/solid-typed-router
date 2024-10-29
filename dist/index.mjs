@@ -3,17 +3,17 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import process from 'node:process';
 import { pathToFileURL } from 'node:url';
+import { rollup } from 'rollup';
+import { createLogger } from 'vite';
 
+let esbuild;
+const logger = createLogger("info", { prefix: "[solid-typed-routes]", allowClearScreen: true });
 const DEFAULTS = {
   root: process.cwd(),
   routesPath: "src/routes",
   outputPath: "src/typedRoutes.gen.ts",
   routesDefinitions: [],
-  dynamicParamsPrefix: "$",
-  dynamicCatchAllParamsPrefix: "$$",
-  dotReplacement: "_dot_",
-  dashReplacement: "_dash_",
-  plusReplacement: "_plus_",
+  searchParamsSchemas: {},
   replacements: {
     ":": "$",
     "*": "$$",
@@ -23,7 +23,14 @@ const DEFAULTS = {
   }
 };
 const resolveOptions = (options) => {
-  const resolvedOptions = Object.assign({}, DEFAULTS, options);
+  const replacements = Object.assign(
+    {},
+    DEFAULTS.replacements,
+    options.replacements
+  );
+  const resolvedOptions = Object.assign({}, DEFAULTS, options, {
+    replacements
+  });
   resolvedOptions.root = path.isAbsolute(resolvedOptions.root) ? resolvedOptions.root : path.resolve(process.cwd(), resolvedOptions.root);
   resolvedOptions.routesPath = path.isAbsolute(resolvedOptions.routesPath) ? resolvedOptions.routesPath : path.resolve(resolvedOptions.root, resolvedOptions.routesPath);
   resolvedOptions.outputPath = path.isAbsolute(resolvedOptions.outputPath) ? resolvedOptions.outputPath : path.resolve(resolvedOptions.root, resolvedOptions.outputPath);
@@ -73,15 +80,19 @@ const outputFileTemplatePath = path.resolve(
 );
 let isRunning = false;
 const generateTypedRoutes = async (resolvedOptions) => {
+  const start = performance.now();
   try {
     if (isRunning) {
-      return console.log("typed-routes is already running");
+      return logger.warn("typed-routes is already running", { timestamp: true });
     }
+    const throwError = (message) => {
+      throw new Error(message);
+    };
     isRunning = true;
     const { root, routesPath, outputPath } = resolvedOptions;
     let routesDefinitions = resolvedOptions.routesDefinitions;
     if (!fs.existsSync(routesPath) || !fs.lstatSync(routesPath).isDirectory()) {
-      throw new Error(`Routes directory not found at ${routesPath}`);
+      throwError(`Routes directory not found at ${routesPath}`);
     }
     if (routesDefinitions.length <= 0) {
       try {
@@ -151,34 +162,71 @@ const generateTypedRoutes = async (resolvedOptions) => {
           return acc;
         }, []);
       } catch (error) {
-        console.error(error);
+        logger.error(error, { timestamp: true });
         routesDefinitions = [];
       }
     }
+    const searchParamsImports = [];
+    try {
+      esbuild = esbuild || (await import('rollup-plugin-esbuild')).default;
+      const build = await rollup({
+        input: routesDefinitions.map(
+          (route) => path.join(path.dirname(resolvedOptions.outputPath), route.info.id + ".tsx")
+        ),
+        logLevel: "silent",
+        plugins: [esbuild({ target: "esnext", logLevel: "silent" })]
+      });
+      const generated = await build.generate({});
+      const output = generated.output;
+      for (let i = 0; i < output.length; i++) {
+        const file = output[i];
+        if (!file.facadeModuleId) {
+          continue;
+        }
+        if (file.exports.includes("searchParams")) {
+          const route = routesDefinitions.find((route2) => {
+            return path.normalize(path.join(path.dirname(resolvedOptions.outputPath), route2.info.id)).replace(".tsx", "") === path.normalize(file.facadeModuleId).replace(".tsx", "");
+          });
+          const routePath = route?.path;
+          if (routePath) {
+            const asName = `searchParams${searchParamsImports.length}`;
+            searchParamsImports.push(
+              `import type { searchParams as ${asName} } from "${route.info.id}"`
+            );
+            resolvedOptions.searchParamsSchemas[routePath] = `{} as typeof ${asName}`;
+          }
+        }
+      }
+    } catch (error) {
+      logger.error(error, { timestamp: true });
+    }
     const routes = JSON.stringify(defineRoutes(routesDefinitions), null, 2).replace(/('|"|`)?\${3}('|"|`)?/g, "").replace(/"([^"]+)":/g, "$1:").replace(/\uFFFF/g, '\\"');
+    const searchParamsSchemas = JSON.stringify(resolvedOptions.searchParamsSchemas, null, 2).replace(/: "([^"]+)"/g, ": $1");
+    const SearchParamsRoutes = Object.keys(resolvedOptions.searchParamsSchemas).map((k) => `'${k}'`).join(" | ");
     const { StaticTypedRoutes, DynamicTypedRoutes, DynamicTypedRoutesParams } = routesDefinitions.reduce(
       (acc, route) => {
-        if (!route.path)
-          return acc;
+        if (!route.path) return acc;
         const StaticOrDynamic = route.path.includes(":") || route.path.includes("*") ? "DynamicTypedRoutes" : "StaticTypedRoutes";
         acc[StaticOrDynamic] = acc[StaticOrDynamic] ? acc[StaticOrDynamic] + " | " : acc[StaticOrDynamic];
         acc[StaticOrDynamic] += `'${route.path}'`;
         if (StaticOrDynamic === "DynamicTypedRoutes") {
-          acc.DynamicTypedRoutesParams[route.path] = acc.DynamicTypedRoutesParams[route.path] || [];
+          const routeParams = acc.DynamicTypedRoutesParams[route.path] || [];
           const params = route.path.match(/(:|\*)([^/]+)/g) || [];
           for (let i = 0; i < params.length; i++) {
             const param = params[i];
-            acc.DynamicTypedRoutesParams[route.path].push(
-              // camelcase(
-              //   param
-              //     .split(':')
-              //     .join(resolvedOptions.dynamicParamsPrefix)
-              //     .split('*')
-              //     .join(resolvedOptions.dynamicCatchAllParamsPrefix),
-              // ),
-              param.split(":").join(resolvedOptions.dynamicParamsPrefix).split("*").join(resolvedOptions.dynamicCatchAllParamsPrefix).split(".").join(resolvedOptions.dotReplacement).split("-").join(resolvedOptions.dashReplacement).split("+").join(resolvedOptions.plusReplacement)
-            );
+            const parsedParam = Object.entries(resolvedOptions.replacements).sort((a, b) => {
+              return b[1].length - a[1].length;
+            }).reduce((acc2, [key, value]) => {
+              return acc2.split(key).join(value);
+            }, param);
+            if (routeParams.includes(parsedParam)) {
+              throwError(
+                `Duplicate route parameter" ${param}" (parsed: "${parsedParam}") in "${route.path}"`
+              );
+            }
+            routeParams.push(parsedParam);
           }
+          acc.DynamicTypedRoutesParams[route.path] = routeParams;
         }
         return acc;
       },
@@ -190,18 +238,30 @@ const generateTypedRoutes = async (resolvedOptions) => {
     );
     const outputFileTemplate = fs.readFileSync(outputFileTemplatePath, "utf-8");
     const createOutputFile = (values) => {
-      return Object.entries(values).reduce((acc, [key, value]) => {
+      let outputFile2 = "";
+      outputFile2 += "\n";
+      outputFile2 += searchParamsImports.join("\n");
+      outputFile2 += "\n";
+      const body = Object.entries(values).reduce((acc, [key, value]) => {
         return acc.split(`$$$${key}$$$`).join(typeof value !== "string" ? JSON.stringify(value, null, 2) : value);
       }, outputFileTemplate);
+      outputFile2 += body;
+      outputFile2 = outputFile2.replaceAll("// @ts-ignore", "");
+      return outputFile2;
     };
     const outputFile = createOutputFile({
       ...resolvedOptions,
       routes,
+      searchParamsSchemas,
+      SearchParamsRoutes,
       StaticTypedRoutes,
       DynamicTypedRoutes,
       DynamicTypedRoutesParams
     });
     fs.writeFileSync(outputPath, outputFile);
+    logger.info(`Typed routes generated in ${Math.round(performance.now() - start)}ms`, {
+      timestamp: true
+    });
   } catch (error) {
     isRunning = false;
     if (error instanceof Error) {
@@ -214,14 +274,13 @@ const generateTypedRoutes = async (resolvedOptions) => {
 const pluginFilesDir = path.resolve(import.meta.dirname, "..");
 const solidTypedRoutesPlugin = (options = DEFAULTS) => {
   const pluginDev = !!process.env.PLUGIN_DEV;
-  pluginDev && console.log("Development mode of the plugin");
+  pluginDev && logger.info("Development mode of the plugin", { timestamp: true });
   const resolvedOptions = resolveOptions(options);
   generateTypedRoutes(resolvedOptions);
   return {
     name: "solid-typed-routes",
     api: "serve",
     buildStart() {
-      console.log("buildStart");
       pluginDev && this.addWatchFile(pluginFilesDir);
       generateTypedRoutes(resolvedOptions);
     },
