@@ -14,7 +14,7 @@ yarn add solid-typed-routes-plugin
 ## Usage
 
 Add the plugin to your Vite configuration:
-```
+```javascript
 import { defineConfig } from 'vite';
 import solid from 'vite-plugin-solid';
 import { solidTypedRoutesPlugin } from 'solid-typed-routes-plugin';
@@ -43,7 +43,7 @@ The plugin accepts the following options:
 ## Search Params Validation
 
 If you export a searchParams object from a route, the plugin will automatically create search params validation for that route. You need valibot >= 1.
-```
+```javascript
 import { createSearchParams } from "@/generated/typedRoutes.gen"
 import { object, optional, pipe, string, transform } from "valibot"
 
