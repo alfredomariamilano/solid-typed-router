@@ -4,11 +4,9 @@ A Vite plugin for generating typed routes for Solid.js applications. This plugin
 
 ## Installation
 
-Install the plugin using npm or yarn:
+This plugin is still in active development and it is not published on npm or other registries. To try it out, install via
 ```bash
-npm install solid-typed-routes-plugin
-# or
-yarn add solid-typed-routes-plugin
+npm i git+https://github.com/alfredomariamilano/solid-typed-router.git --save-dev
 ```
 
 ## Usage
