@@ -1,6 +1,6 @@
-import type { NavigateOptions, RouteDefinition } from '@solidjs/router'
-import { A, useNavigate, useSearchParams } from '@solidjs/router'
-import type { ComponentProps, JSX } from 'solid-js'
+import type { MatchFilters, NavigateOptions, Params, RouteDefinition } from '@solidjs/router'
+import { A, useMatch, useNavigate, useSearchParams } from '@solidjs/router'
+import type { Accessor, ComponentProps, JSX } from 'solid-js'
 import { lazy, splitProps } from 'solid-js'
 import type { BaseIssue, BaseSchema, InferInput } from 'valibot'
 import { safeParse } from 'valibot'
@@ -40,10 +40,14 @@ interface TypedNavigator {
   (delta: number): void
 }
 
-const useReplacements = (string: string) => {
-  return Object.entries(replacements)
+export const useReplacements = (string: string, flip?: boolean) => {
+  const maybeFlippedReplacements = flip
+    ? Object.fromEntries(Object.entries(replacements).map(([a, b]) => [b, a]))
+    : replacements
+
+  return Object.entries(maybeFlippedReplacements)
     .sort((a, b) => {
-      return b[1].length - a[1].length
+      return b[0].length - a[0].length
     })
     .reduce((acc, [key, value]) => {
       return acc.split(key).join(value)
@@ -58,7 +62,9 @@ export const getTypedRoute = <T extends TypedRoutes>(
 
   if (params) {
     Object.keys(params).forEach(key => {
-      const dynamicParamKey = useReplacements(key)
+      const dynamicParamKey = useReplacements(key, true)
+
+      console.log({ key, dynamicParamKey })
 
       parsedLink = parsedLink.split(dynamicParamKey).join(params[key]) as T
     })
@@ -81,6 +87,15 @@ export const useTypedNavigate = () => {
   }
 
   return typedNavigate
+}
+
+export const useTypedMatch = <T extends TypedRoutes>(
+  path: () => T,
+  matchFilters?: MatchFilters<T>,
+) => {
+  return useMatch(path, matchFilters) as unknown as Accessor<
+    { path: T; params: Params[T] } | undefined
+  >
 }
 
 export type TypedLinkProps<T extends TypedRoutes> = Omit<ComponentProps<typeof A>, 'href'> & {
