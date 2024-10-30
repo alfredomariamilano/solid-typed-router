@@ -1,5 +1,8 @@
+// @ts-ignore
+$$$searchParamsImports$$$
 import type { MatchFilters, NavigateOptions, Params, RouteDefinition } from '@solidjs/router'
 import { A, useMatch, useNavigate, useSearchParams } from '@solidjs/router'
+import mergeWith from 'lodash-es/mergeWith'
 import type { Accessor, ComponentProps, JSX } from 'solid-js'
 import { createMemo, lazy, splitProps } from 'solid-js'
 import type { BaseIssue, BaseSchema, InferInput } from 'valibot'
@@ -134,7 +137,14 @@ export function useTypedSearchParams<const T extends SearchParamsRoutes>(schema:
   const [searchParams, setSearchParams] = useSearchParams<SearchParams>()
 
   const parse = (params: Partial<SearchParams>) => {
-    return safeParse<SearchParamsSchema>(searchParamsSchemas[schema], params).output as SearchParams
+    try {
+      return safeParse<SearchParamsSchema>(searchParamsSchemas[schema], params)
+        .output as SearchParams
+    } catch (error) {
+      console.warn(error)
+
+      return params as SearchParams
+    }
   }
 
   const typedSearchParams = createMemo(() => {
@@ -156,7 +166,15 @@ export function useTypedSearchParams<const T extends SearchParamsRoutes>(schema:
     options?: Partial<NavigateOptions>,
   ) => {
     return setSearchParams(
-      Object.entries(parse(params)).reduce((acc, [key, value]) => {
+      Object.entries(
+        parse(
+          mergeWith(typedSearchParams(), params, (source, destination) => {
+            if (Array.isArray(source)) {
+              return destination
+            }
+          }),
+        ),
+      ).reduce((acc, [key, value]) => {
         try {
           if (typeof value === 'object') {
             acc[key] = JSON.stringify(value)

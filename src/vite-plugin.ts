@@ -59,7 +59,12 @@ type TypedRoutesOptions = {
    * The path to the output file. If it's not an absolute path, it will be resolved relative to options.root or process.cwd().
    * @default 'src/typedRoutes.gen.ts'
    */
-  outputPath?: string
+  typedRoutesPath?: string
+  /**
+   * The path to the output file. If it's not an absolute path, it will be resolved relative to options.root or process.cwd().
+   * @default 'src/typedSearchParams.gen.ts'
+   */
+  typedSearchParamsPath?: string
   /**
    * Custom replacements for route parameters and route names.
    * @default { ':': '$', '*': '$$', '.': '_dot_', '-': '_dash_', '+': '_plus_' }
@@ -70,7 +75,8 @@ type TypedRoutesOptions = {
 const DEFAULTS: Partial<TypedRoutesOptions> = {
   root: process.cwd(),
   routesPath: 'src/routes',
-  outputPath: 'src/typedRoutes.gen.ts',
+  typedRoutesPath: 'src/typedRoutes.gen.ts',
+  typedSearchParamsPath: 'src/typedSearchParams.gen.ts',
   routesDefinitions: [],
   searchParamsSchemas: {},
   replacements: {
@@ -103,9 +109,9 @@ const resolveOptions = (options: TypedRoutesOptions): Required<TypedRoutesOption
     ? resolvedOptions.routesPath
     : path.resolve(resolvedOptions.root, resolvedOptions.routesPath)
 
-  resolvedOptions.outputPath = path.isAbsolute(resolvedOptions.outputPath)
-    ? resolvedOptions.outputPath
-    : path.resolve(resolvedOptions.root, resolvedOptions.outputPath)
+  resolvedOptions.typedRoutesPath = path.isAbsolute(resolvedOptions.typedRoutesPath)
+    ? resolvedOptions.typedRoutesPath
+    : path.resolve(resolvedOptions.root, resolvedOptions.typedRoutesPath)
 
   return resolvedOptions
 }
@@ -145,14 +151,23 @@ function defineRoutes(fileRoutes: RouteDefinition[]) {
     }, [] as RouteDefinition[])
 }
 
-const outputFileTemplatePath = path.resolve(
+const typedRoutesTemplatePath = path.resolve(
   import.meta.dirname,
   '..',
   'static',
-  'outputFileTemplate.ts',
+  'typedRoutes.template.ts',
 )
 
-let outputFileTemplate = fs.readFileSync(outputFileTemplatePath, 'utf-8')
+let typedRoutesTemplate = fs.readFileSync(typedRoutesTemplatePath, 'utf-8')
+
+// const typedSearchParamsTemplatePath = path.resolve(
+//   import.meta.dirname,
+//   '..',
+//   'static',
+//   'typedSearchParams.template.ts',
+// )
+
+// let typedSearchParamsTemplate = fs.readFileSync(typedSearchParamsTemplatePath, 'utf-8')
 
 let isRunning = false
 
@@ -185,7 +200,7 @@ const generateTypedRoutes = async (resolvedOptions_: Required<TypedRoutesOptions
         }, string)
     }
 
-    const { routesPath, outputPath } = resolvedOptions
+    const { routesPath, typedRoutesPath } = resolvedOptions
 
     let routesDefinitions = resolvedOptions.routesDefinitions
 
@@ -193,7 +208,7 @@ const generateTypedRoutes = async (resolvedOptions_: Required<TypedRoutesOptions
       throwError(`Routes directory not found at ${routesPath}`)
     }
 
-    const searchParamsImports = [] as string[]
+    const searchParamsImportsArray = [] as string[]
     const routesObject = {} as Record<string, any>
 
     if (routesDefinitions.length <= 0) {
@@ -263,7 +278,7 @@ const generateTypedRoutes = async (resolvedOptions_: Required<TypedRoutesOptions
 
               let relativePathFromOutput = path
                 .relative(
-                  path.dirname(resolvedOptions.outputPath),
+                  path.dirname(resolvedOptions.typedRoutesPath),
                   path.join(resolvedOptions.routesPath, relativePath),
                 )
                 .replace(/\\/g, '/')
@@ -291,9 +306,9 @@ const generateTypedRoutes = async (resolvedOptions_: Required<TypedRoutesOptions
                 })
 
                 if (file.exports.includes('searchParams')) {
-                  const asName = `searchParams${searchParamsImports.length}`
+                  const asName = `searchParams${searchParamsImportsArray.length}`
 
-                  searchParamsImports.push(
+                  searchParamsImportsArray.push(
                     `import type { searchParams as ${asName} } from "${relativePathFromOutput}"`,
                   )
 
@@ -331,6 +346,8 @@ const generateTypedRoutes = async (resolvedOptions_: Required<TypedRoutesOptions
     const routesMap = JSON.stringify(routesObject, null, 2) // https://stackoverflow.com/a/11233515/10019771
       .replace(/"([^"]+)":/g, '$1:')
       .replace(/\uFFFF/g, '\\"')
+
+    const searchParamsImports = searchParamsImportsArray.join('\n')
 
     const searchParamsSchemas = JSON.stringify(resolvedOptions.searchParamsSchemas, null, 2)
       // https://stackoverflow.com/a/11233515/10019771
@@ -388,10 +405,11 @@ const generateTypedRoutes = async (resolvedOptions_: Required<TypedRoutesOptions
       )
 
     if (process.env.PLUGIN_DEV) {
-      outputFileTemplate = fs.readFileSync(outputFileTemplatePath, 'utf-8')
+      typedRoutesTemplate = fs.readFileSync(typedRoutesTemplatePath, 'utf-8')
+      // typedSearchParamsTemplate = fs.readFileSync(typedSearchParamsTemplatePath, 'utf-8')
     }
 
-    const createOutputFile = (values: Record<string, any>) => {
+    const createOutputFile = (template: string, values: Record<string, any>) => {
       let outputFile = ''
 
       const banner = [
@@ -409,18 +427,12 @@ const generateTypedRoutes = async (resolvedOptions_: Required<TypedRoutesOptions
 
       outputFile += banner
 
-      outputFile += '\n'
-
-      outputFile += searchParamsImports.join('\n')
-
-      outputFile += '\n'
-
       const body = Object.entries(values).reduce((acc, [key, value]) => {
         const replacement =
           (typeof value !== 'string' ? JSON.stringify(value, null, 2) : value) || "''"
 
         return acc.split(`$$$${key}$$$`).join(replacement)
-      }, outputFileTemplate)
+      }, template)
 
       outputFile += body
 
@@ -429,18 +441,33 @@ const generateTypedRoutes = async (resolvedOptions_: Required<TypedRoutesOptions
       return outputFile
     }
 
-    const outputFile = createOutputFile({
+    const typedRoutesFile = createOutputFile(typedRoutesTemplate, {
       ...resolvedOptions,
       routes,
       routesMap,
       searchParamsSchemas,
+      searchParamsImports,
       SearchParamsRoutes,
       StaticTypedRoutes,
       DynamicTypedRoutes,
       DynamicTypedRoutesParams,
     })
 
-    fs.writeFileSync(outputPath, outputFile)
+    fs.writeFileSync(typedRoutesPath, typedRoutesFile)
+
+    // const typedSearchParamsFile = createOutputFile(typedSearchParamsTemplate, {
+    //   ...resolvedOptions,
+    //   routes,
+    //   routesMap,
+    //   searchParamsSchemas: searchParamsSchemas.replaceAll('{} as typeof ', ''),
+    //   searchParamsImports: searchParamsImports.replaceAll(' type ', ' '),
+    //   SearchParamsRoutes,
+    //   StaticTypedRoutes,
+    //   DynamicTypedRoutes,
+    //   DynamicTypedRoutesParams,
+    // })
+
+    // fs.writeFileSync(resolvedOptions.typedSearchParamsPath, typedSearchParamsFile)
 
     logger.info(`Typed routes generated in ${Math.round(performance.now() - start)}ms`, {
       timestamp: true,
