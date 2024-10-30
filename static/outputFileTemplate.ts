@@ -40,6 +40,16 @@ interface TypedNavigator {
   (delta: number): void
 }
 
+const useReplacements = (string: string) => {
+  return Object.entries(replacements)
+    .sort((a, b) => {
+      return b[1].length - a[1].length
+    })
+    .reduce((acc, [key, value]) => {
+      return acc.split(key).join(value)
+    }, string)
+}
+
 export const getTypedRoute = <T extends TypedRoutes>(
   href: T,
   params: T extends DynamicTypedRoutes ? Pick<DynamicTypedRouteParams<T>, 'params'> : never,
@@ -48,16 +58,7 @@ export const getTypedRoute = <T extends TypedRoutes>(
 
   if (params) {
     Object.keys(params).forEach(key => {
-      const dynamicParamKey = Object.entries(replacements)
-        .sort((a, b) => {
-          return b[1].length - a[1].length
-        })
-        .reduce(
-          (acc, [key, value]) => {
-            return acc.split(value).join(key)
-          },
-          key as keyof DynamicTypedRouteParams<DynamicTypedRoutes>['params'],
-        )
+      const dynamicParamKey = useReplacements(key)
 
       parsedLink = parsedLink.split(dynamicParamKey).join(params[key]) as T
     })

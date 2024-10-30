@@ -1,41 +1,60 @@
-## Usage
+# Solid Typed Routes Plugin
 
-Those templates dependencies are maintained via [pnpm](https://pnpm.io) via `pnpm up -Lri`.
+A Vite plugin for generating typed routes for Solid.js applications. This plugin also creates search params validation if you export a `searchParams` object from the route.
 
-This is the reason you see a `pnpm-lock.yaml`. That being said, any package manager will work. This file can be safely be removed once you clone a template.
+## Installation
 
+Install the plugin using npm or yarn:
 ```bash
-$ npm install # or pnpm install or yarn install
+npm install solid-typed-routes-plugin
+# or
+yarn add solid-typed-routes-plugin
 ```
 
-## Exploring the template
+## Usage
 
-This template's goal is to showcase the routing features of Solid.
-It also showcase how the router and Suspense work together to parallelize data fetching tied to a route via the `.data.ts` pattern.
+Add the plugin to your Vite configuration:
+```
+import { defineConfig } from 'vite';
+import solid from 'vite-plugin-solid';
+import { solidTypedRoutesPlugin } from 'solid-typed-routes-plugin';
 
-You can learn more about it on the [`@solidjs/router` repository](https://github.com/solidjs/solid-router)
+export default defineConfig({
+  plugins: [
+    solid(),
+    solidTypedRoutesPlugin({
+      // options
+    }),
+  ],
+});
+```
 
-### Learn more on the [Solid Website](https://solidjs.com) and come chat with us on our [Discord](https://discord.com/invite/solidjs)
+## Options
 
-## Available Scripts
+The plugin accepts the following options:
 
-In the project directory, you can run:
+- routesDefinitions (default: []): Array of route definitions.
+- searchParamsSchemas (default: {}): Definition of the search params schemas.
+- root (default: process.cwd()): The root directory of the project.
+- routesPath (default: 'src/routes'): The path to the routes directory.
+- outputPath (default: 'src/typedRoutes.gen.ts'): The path to the output file.
+- replacements (default: { ':': '$', '*': '$$', '.': '_dot_', '-': '_dash_', '+': '_plus_' }): Custom replacements for route parameters and route names.
 
-### `npm run dev` or `npm start`
+## Search Params Validation
 
-Runs the app in the development mode.<br>
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+If you export a searchParams object from a route, the plugin will automatically create search params validation for that route. You need valibot >= 1.
+```
+import { createSearchParams } from "@/generated/typedRoutes.gen"
+import { object, optional, pipe, string, transform } from "valibot"
 
-The page will reload if you make edits.<br>
+const searchParamsSchema = optional(
+    object({
+      thing: string(),
+    }),
+    {
+      thing: 'thing',
+    },
+  )
 
-### `npm run build`
-
-Builds the app for production to the `dist` folder.<br>
-It correctly bundles Solid in production mode and optimizes the build for the best performance.
-
-The build is minified and the filenames include the hashes.<br>
-Your app is ready to be deployed!
-
-## Deployment
-
-You can deploy the `dist` folder to any static host provider (netlify, surge, now, etc.)
+export const searchParams = createSearchParams('/thisroute', searchParamsSchema)
+```
