@@ -11,6 +11,8 @@ import { createLogger } from 'vite'
 
 const esbuildPluginImport = import('rollup-plugin-esbuild')
 let esbuildPlugin: typeof EsbuildPluginType
+
+const setImport = import('lodash-es/set.js')
 let set: typeof SetType
 
 const PLUGIN_NAME = 'solid-typed-routes'
@@ -156,6 +158,7 @@ let isRunning = false
 
 const generateTypedRoutes = async (resolvedOptions_: Required<TypedRoutesOptions>) => {
   esbuildPlugin = esbuildPlugin || (await esbuildPluginImport).default
+  set = set || (await setImport).default
 
   const start = performance.now()
 
@@ -272,8 +275,6 @@ const generateTypedRoutes = async (resolvedOptions_: Required<TypedRoutesOptions
               const isRoute = relativePathFromOutput.endsWith('.tsx')
 
               if (isRoute) {
-                set = set || (await import('lodash-es/set')).default
-
                 set(
                   routesObject,
                   [...routePath.split('/').filter(Boolean).map(useReplacements), 'route'],

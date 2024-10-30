@@ -8,6 +8,7 @@ var vite = require('vite');
 
 const esbuildPluginImport = import('rollup-plugin-esbuild');
 let esbuildPlugin;
+const setImport = import('lodash-es/set.js');
 let set;
 const PLUGIN_NAME = "solid-typed-routes";
 const logger = vite.createLogger("info", { prefix: `[${PLUGIN_NAME}]`, allowClearScreen: true });
@@ -71,6 +72,7 @@ let outputFileTemplate = fs.readFileSync(outputFileTemplatePath, "utf-8");
 let isRunning = false;
 const generateTypedRoutes = async (resolvedOptions_) => {
   esbuildPlugin = esbuildPlugin || (await esbuildPluginImport).default;
+  set = set || (await setImport).default;
   const start = performance.now();
   try {
     const resolvedOptions = structuredClone(resolvedOptions_);
@@ -136,7 +138,6 @@ const generateTypedRoutes = async (resolvedOptions_) => {
               }
               const isRoute2 = relativePathFromOutput.endsWith(".tsx");
               if (isRoute2) {
-                set = set || (await import('lodash-es/set')).default;
                 set(
                   routesObject,
                   [...routePath.split("/").filter(Boolean).map(useReplacements), "route"],
