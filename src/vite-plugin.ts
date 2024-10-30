@@ -419,38 +419,38 @@ const generateTypedRoutes = async (resolvedOptions: Required<TypedRoutesOptions>
         }
       }
 
-      // const { default: microdiff } = await import('microdiff')
-      // const sortedRoutesDefinitions = routesDefinitions
-      //   .filter(r => r.path.includes('nested'))
-      //   .map(r => {
-      //     r.component = (r.component as any).replace('.tsx', '')
-      //     r.id = r.info?.id
-      //     return r
-      //   })
-      //   .sort((a, b) => {
-      //     if (a.path < b.path) return -1
+      const { default: microdiff } = await import('microdiff')
+      const sortedRoutesDefinitions = routesDefinitions
+        // .filter(r => r.path.includes('nested'))
+        .map(r => {
+          r.component = (r.component as any).replace('.tsx', '')
+          // ;(r as any).infoID = r.info?.id
+          return r
+        })
+        .sort((a, b) => {
+          if (a.path < b.path) return -1
 
-      //     if (a.path > b.path) return 1
+          if (a.path > b.path) return 1
 
-      //     return 0
-      //   })
-      // const sortedNewRoutesDefinitions = newRoutesDefinitions
-      //   .filter(r => r.path.includes('/nested'))
-      //   .map(r => {
-      //     r.component = (r.component as any).replace('.tsx', '')
-      //     r.id = r.info?.id
-      //     return r
-      //   })
-      //   .sort((a, b) => {
-      //     if (a.path < b.path) return -1
+          return 0
+        })
+      const sortedNewRoutesDefinitions = newRoutesDefinitions
+        // .filter(r => r.path.includes('/nested'))
+        .map(r => {
+          r.component = (r.component as any).replace('.tsx', '')
+          // ;(r as any).infoID = r.info?.id
+          return r
+        })
+        .sort((a, b) => {
+          if (a.path < b.path) return -1
 
-      //     if (a.path > b.path) return 1
+          if (a.path > b.path) return 1
 
-      //     return 0
-      //   })
-      // console.clear()
+          return 0
+        })
+      console.clear()
       // console.log({ sortedRoutesDefinitions, sortedNewRoutesDefinitions })
-      // // console.log({ diff: microdiff(sortedRoutesDefinitions, sortedNewRoutesDefinitions) })
+      console.log(microdiff(sortedRoutesDefinitions, sortedNewRoutesDefinitions))
     } catch (error) {
       logger.error(error, { timestamp: true })
     }
@@ -514,8 +514,8 @@ const generateTypedRoutes = async (resolvedOptions: Required<TypedRoutesOptions>
 
     // // logger.info(routesObject)
 
-    routesDefinitions.length = 0
-    routesDefinitions.push(...newRoutesDefinitions)
+    // routesDefinitions.length = 0
+    // routesDefinitions.push(...newRoutesDefinitions)
 
     const routes = JSON.stringify(defineRoutes(routesDefinitions), null, 2)
       // replace the recognizable string with the actual lazy import

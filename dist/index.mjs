@@ -234,11 +234,28 @@ const generateTypedRoutes = async (resolvedOptions) => {
           }
         }
       }
+      const { default: microdiff } = await import('microdiff');
+      const sortedRoutesDefinitions = routesDefinitions.map((r) => {
+        r.component = r.component.replace(".tsx", "");
+        return r;
+      }).sort((a, b) => {
+        if (a.path < b.path) return -1;
+        if (a.path > b.path) return 1;
+        return 0;
+      });
+      const sortedNewRoutesDefinitions = newRoutesDefinitions.map((r) => {
+        r.component = r.component.replace(".tsx", "");
+        return r;
+      }).sort((a, b) => {
+        if (a.path < b.path) return -1;
+        if (a.path > b.path) return 1;
+        return 0;
+      });
+      console.clear();
+      console.log(microdiff(sortedRoutesDefinitions, sortedNewRoutesDefinitions));
     } catch (error) {
       logger.error(error, { timestamp: true });
     }
-    routesDefinitions.length = 0;
-    routesDefinitions.push(...newRoutesDefinitions);
     const routes = JSON.stringify(defineRoutes(routesDefinitions), null, 2).replace(/('|"|`)?\${3}('|"|`)?/g, "").replace(/"([^"]+)":/g, "$1:").replace(/\uFFFF/g, '\\"');
     const searchParamsSchemas = JSON.stringify(resolvedOptions.searchParamsSchemas, null, 2).replace(/: "([^"]+)"/g, ": $1");
     const SearchParamsRoutes = Object.keys(resolvedOptions.searchParamsSchemas).map((k) => `'${k}'`).join(" | ");
