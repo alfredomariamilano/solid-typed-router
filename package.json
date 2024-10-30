@@ -21,22 +21,19 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@solidjs/router": "^0.14.10",
-    "@solidjs/start": "^1.0.9",
-    "lodash-es": "^4.17.21",
-    "microdiff": "^1.4.0",
-    "solid-js": "^1.9.3",
-    "vinxi": "^0.4.3"
+    "lodash-es": "^4.17.21"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
     "@types/node": "^22.8.1",
-    "rollup": "^4.24.2",
     "rollup-plugin-dts": "^6.1.1",
-    "rollup-plugin-esbuild": "^6.1.1",
     "vite": "^5.4.10"
   },
   "peerDependencies": {
+    "@solidjs/router": "^0.14.10",
+    "rollup": "^4.24.3",
+    "rollup-plugin-esbuild": "^6.1.1",
+    "solid-js": "^1.9.3",
     "valibot": "^1.0.0-beta.2"
   }
 }

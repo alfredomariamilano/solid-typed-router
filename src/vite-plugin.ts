@@ -1,12 +1,9 @@
 import fs from 'node:fs'
-import { createRequire } from 'node:module'
 import path from 'node:path'
 import process from 'node:process'
-import { pathToFileURL } from 'node:url'
 import type { RouteDefinition } from '@solidjs/router'
 import type SetType from 'lodash-es/set'
 import { rollup } from 'rollup'
-// import type DtsPluginType from 'rollup-plugin-dts'
 import type EsbuildPluginType from 'rollup-plugin-esbuild'
 import type { BaseIssue, BaseSchema } from 'valibot'
 import type { Plugin } from 'vite'
@@ -14,9 +11,6 @@ import { createLogger } from 'vite'
 
 let esbuildPlugin: typeof EsbuildPluginType
 let set: typeof SetType
-// let dtsPlugin: typeof DtsPluginType
-// import { defineConfig, mergeConfig } from 'vitest/config'
-// import { tanstackViteConfig } from '@tanstack/config/vite'
 
 const logger = createLogger('info', { prefix: '[solid-typed-routes]', allowClearScreen: true })
 
@@ -114,11 +108,7 @@ function defineRoutes(fileRoutes: RouteDefinition[]) {
     })
 
     if (!parentRoute) {
-      routes.push({
-        ...route,
-        // info: { id },
-        // path: id.replace(/\/\([^)/]+\)/g, '').replace(/\([^)/]+\)/g, ''),
-      })
+      routes.push(route)
 
       return routes
     }
@@ -139,22 +129,6 @@ function defineRoutes(fileRoutes: RouteDefinition[]) {
 
       return processRoute(prevRoutes, route, route.info!.id, route.path)
     }, [] as RouteDefinition[])
-}
-
-const findNodeModules = (root: string) => {
-  const nodeModulesPath = path.resolve(root, 'node_modules')
-
-  if (fs.existsSync(nodeModulesPath)) {
-    return nodeModulesPath
-  }
-
-  const parentDir = path.resolve(root, '..')
-
-  if (parentDir === root) {
-    return
-  }
-
-  return findNodeModules(parentDir)
 }
 
 const outputFileTemplatePath = path.resolve(
@@ -190,7 +164,7 @@ const generateTypedRoutes = async (resolvedOptions: Required<TypedRoutesOptions>
 
     isRunning = true
 
-    const { root, routesPath, outputPath } = resolvedOptions
+    const { routesPath, outputPath } = resolvedOptions
 
     let routesDefinitions = resolvedOptions.routesDefinitions
 
@@ -198,106 +172,124 @@ const generateTypedRoutes = async (resolvedOptions: Required<TypedRoutesOptions>
       throwError(`Routes directory not found at ${routesPath}`)
     }
 
+    const searchParamsImports = [] as string[]
+    const routesObject = {} as Record<string, any>
+
     if (routesDefinitions.length <= 0) {
       try {
-        let SolidStartServerFileRouter!: any
-        let routesPluginInit!: any
+        const validPathRegex = /^(\w|\d|_|\-|\.|\\|\/|\[|\]|\(|\))+$/g
 
-        try {
-          const require = createRequire(root)
+        const routesFilesPaths = fs
+          .readdirSync(routesPath, { recursive: true })
+          .reduce((acc, routePath_) => {
+            const routePath = routePath_.toString()
+            const absolutePath = path.resolve(routesPath, routePath)
 
-          const solidStartConfigPath = path.dirname(require.resolve('@solidjs/start/config'))
+            if (fs.lstatSync(absolutePath).isDirectory()) return acc
 
-          const fileSysteRouterPath = pathToFileURL(
-            path.resolve(solidStartConfigPath, 'fs-router.js'),
-          ).pathname
+            if (!routePath.match(validPathRegex)?.[0]) {
+              throwError(
+                `Invalid route path "${routePath}". Routes must conform to the regex ${validPathRegex}`,
+              )
+              // logger.info(`Invalid route path "${routePath}"`, { timestamp: true })
+            } else {
+              // logger.info(`Valid route path "${routePath}"`, { timestamp: true })
+            }
 
-          SolidStartServerFileRouter = (await import(fileSysteRouterPath))
-            .SolidStartServerFileRouter
+            acc.push(absolutePath)
 
-          const nodeModulesPath = solidStartConfigPath.split('node_modules')[0] + 'node_modules'
+            return acc
+          }, [] as string[])
 
-          const vinxiPath = path.resolve(nodeModulesPath, 'vinxi')
+        esbuildPlugin = esbuildPlugin || (await import('rollup-plugin-esbuild')).default
+        // dtsPlugin = dtsPlugin || (await import('rollup-plugin-dts')).default
 
-          const routesPluginPath = pathToFileURL(
-            path.resolve(vinxiPath, 'lib/plugins/routes.js'),
-          ).pathname
-
-          routesPluginInit = (await import(routesPluginPath)).routes
-        } catch {
-          const nodeModulesPath = findNodeModules(root) || root
-
-          const fileSysteRouterPath = pathToFileURL(
-            path.resolve(nodeModulesPath, '@solidjs/start/config/fs-router.js'),
-          ).pathname
-
-          SolidStartServerFileRouter = (await import(fileSysteRouterPath))
-            .SolidStartServerFileRouter
-
-          const routesPluginPath = pathToFileURL(
-            path.resolve(nodeModulesPath, 'vinxi/lib/plugins/routes.js'),
-          ).pathname
-
-          routesPluginInit = (await import(routesPluginPath)).routes
-        }
-
-        const fileRouter = new SolidStartServerFileRouter(
-          {
-            dir: routesPath,
-            extensions: ['ts', 'tsx'],
-          },
-          {},
-          {},
-        )
-
-        const routesPlugin = routesPluginInit()
-
-        routesPlugin.configResolved({
-          root: routesPath,
-          router: {
-            target: 'server',
-            name: 'solid',
-            internals: {
-              routes: fileRouter,
-            },
-          },
+        const build = await rollup({
+          input: routesFilesPaths,
+          logLevel: 'silent',
+          plugins: [esbuildPlugin({ target: 'esnext', logLevel: 'silent' })],
         })
 
-        const routesCode = (await routesPlugin.load('vinxi/routes'))
-          .replaceAll(`"filePath":"${root}/src/`, '"filePath":"')
-          .replace(/"\$[^\}]+/g, 'noop')
-          .replaceAll('noop},', '')
-          .replace(/\.tsx/g, '')
-          .replace('export default', '')
-          .trim()
+        const generated = await build.generate({})
 
-        const routes = JSON.parse(routesCode) as {
-          page: boolean
-          path: string
-          filePath: string
-        }[]
+        const output = generated.output as (typeof generated.output)[0][]
 
-        routesDefinitions = routes.reduce<RouteDefinition[]>((acc, route) => {
-          if (!route.page) {
-            return acc
+        for (let i = 0; i < output.length; i++) {
+          const file = output[i]
+
+          if (file.facadeModuleId) {
+            const relativePath = path.relative(routesPath, file.facadeModuleId).replace(/\\/g, '/')
+
+            const isRoute = !relativePath.startsWith('..')
+
+            if (isRoute) {
+              // const basename = path.basename(relativePath)
+              const ext = path.extname(relativePath)
+
+              let routePath = relativePath
+                .replace(new RegExp(`\\${ext}$`), '')
+                .replace(/\[\.{3}/g, '*')
+                .replace(/\[([^\]]+)\]/g, ':$1')
+                .replace(/\]/g, '')
+                .replace(/\\/g, '/')
+                .replace(/\/?\(.+\)/g, '')
+                .replace(/^index$/g, '/')
+                .replace(/index$/g, '')
+
+              routePath = routePath
+                ? routePath.startsWith('/')
+                  ? routePath
+                  : `/${routePath}`
+                : routePath
+
+              // if (basename.match(/\(.+\)\/?/g)) {
+              //   routePath = ''
+              // }
+
+              let relativePathFromOutput = path
+                .relative(
+                  path.dirname(resolvedOptions.outputPath),
+                  path.join(resolvedOptions.routesPath, relativePath),
+                )
+                .replace(/\\/g, '/')
+
+              if (!relativePathFromOutput.startsWith('.')) {
+                relativePathFromOutput = './' + relativePathFromOutput
+              }
+
+              const isRoute = relativePathFromOutput.endsWith('.tsx')
+
+              if (isRoute) {
+                set = set || (await import('lodash-es/set')).default
+
+                set(
+                  routesObject,
+                  [...routePath.split('/').filter(Boolean).map(useReplacements), 'route'],
+                  routePath || '/',
+                )
+
+                routesDefinitions.push({
+                  path: routePath,
+                  component:
+                    `$$$lazy(() => import('${relativePathFromOutput.replace(new RegExp(`\\${ext}$`), '')}'))$$$` as any,
+                  info: {
+                    id: relativePath.replace(new RegExp(`\\${ext}$`), ''),
+                  },
+                })
+
+                if (file.exports.includes('searchParams')) {
+                  const asName = `searchParams${searchParamsImports.length}`
+
+                  searchParamsImports.push(
+                    `import type { searchParams as ${asName} } from "${relativePathFromOutput}"`,
+                  )
+
+                  resolvedOptions.searchParamsSchemas[routePath] = `{} as typeof ${asName}` as any
+                }
+              }
+            }
           }
-
-          const relativeFilePath = [
-            './',
-            path.relative(path.dirname(outputPath), route.filePath).replace(/\\/g, '/'),
-          ].join('')
-
-          acc.push({
-            path: route.path.replace(/\/\([^)/]+\)/g, '').replace(/\([^)/]+\)/g, ''),
-            // use a recongnizable string that can be replaced later
-            component: `$$$lazy(() => import('${relativeFilePath}'))$$$` as any,
-            info: {
-              id: relativeFilePath,
-            },
-          })
-
-          return acc
-        }, [])
+        }
       } catch (error) {
         logger.error(error, { timestamp: true })
 
@@ -305,222 +297,14 @@ const generateTypedRoutes = async (resolvedOptions: Required<TypedRoutesOptions>
       }
     }
 
-    const searchParamsImports = [] as string[]
-    const newRoutesDefinitions = [] as RouteDefinition[]
-    try {
-      const validPathRegex = /^(\w|\d|_|\-|\.|\\|\/|\[|\]|\(|\))+$/g
-
-      const routesFilesPaths = fs
-        .readdirSync(routesPath, { recursive: true })
-        .reduce((acc, routePath_) => {
-          const routePath = routePath_.toString()
-          const absolutePath = path.resolve(routesPath, routePath)
-
-          if (fs.lstatSync(absolutePath).isDirectory()) return acc
-
-          if (!routePath.match(validPathRegex)?.[0]) {
-            throwError(
-              `Invalid route path "${routePath}". Routes must conform to the regex ${validPathRegex}`,
-            )
-            // logger.info(`Invalid route path "${routePath}"`, { timestamp: true })
-          } else {
-            // logger.info(`Valid route path "${routePath}"`, { timestamp: true })
-          }
-
-          acc.push(absolutePath)
-
-          return acc
-        }, [] as string[])
-
-      esbuildPlugin = esbuildPlugin || (await import('rollup-plugin-esbuild')).default
-      // dtsPlugin = dtsPlugin || (await import('rollup-plugin-dts')).default
-
-      const build = await rollup({
-        input: routesFilesPaths,
-        logLevel: 'silent',
-        plugins: [esbuildPlugin({ target: 'esnext', logLevel: 'silent' })],
-      })
-
-      const generated = await build.generate({})
-
-      const output = generated.output as (typeof generated.output)[0][]
-
-      for (let i = 0; i < output.length; i++) {
-        const file = output[i]
-
-        if (file.facadeModuleId) {
-          const relativePath = path.relative(routesPath, file.facadeModuleId).replace(/\\/g, '/')
-
-          const isRoute = !relativePath.startsWith('..')
-
-          if (isRoute) {
-            // logger.warn(relativePath, { timestamp: true })
-
-            // const basename = path.basename(relativePath)
-            const ext = path.extname(relativePath)
-
-            let routePath = relativePath
-              .replace(new RegExp(`\\${ext}$`), '')
-              .replace(/\[\.{3}/g, '*')
-              .replace(/\[([^\]]+)\]/g, ':$1')
-              .replace(/\]/g, '')
-              .replace(/\\/g, '/')
-              .replace(/\/?\(.+\)/g, '')
-              .replace(/^index$/g, '/')
-              .replace(/index$/g, '')
-
-            routePath = routePath
-              ? routePath.startsWith('/')
-                ? routePath
-                : `/${routePath}`
-              : routePath
-
-            // console.log({ relativePath, routePath })
-
-            // if (basename.match(/\(.+\)\/?/g)) {
-            //   routePath = ''
-            // }
-
-            let relativePathFromOutput = path
-              .relative(
-                path.dirname(resolvedOptions.outputPath),
-                path.join(resolvedOptions.routesPath, relativePath),
-              )
-              .replace(/\\/g, '/')
-
-            if (!relativePathFromOutput.startsWith('.')) {
-              relativePathFromOutput = './' + relativePathFromOutput
-            }
-
-            // console.log({ routePath, relativePath })
-            const isRoute = relativePathFromOutput.endsWith('.tsx')
-
-            if (isRoute) {
-              newRoutesDefinitions.push({
-                path: routePath,
-                component:
-                  `$$$lazy(() => import('${relativePathFromOutput.replace(new RegExp(`\\${ext}$`), '')}'))$$$` as any,
-                info: {
-                  id: relativePath.replace(new RegExp(`\\${ext}$`), ''),
-                },
-              })
-
-              if (file.exports.includes('searchParams')) {
-                const asName = `searchParams${searchParamsImports.length}`
-
-                searchParamsImports.push(
-                  `import type { searchParams as ${asName} } from "${relativePathFromOutput}"`,
-                )
-
-                resolvedOptions.searchParamsSchemas[routePath] = `{} as typeof ${asName}` as any
-              }
-            }
-          }
-        }
-      }
-
-      const { default: microdiff } = await import('microdiff')
-      const sortedRoutesDefinitions = routesDefinitions
-        // .filter(r => r.path.includes('nested'))
-        .map(r => {
-          r.component = (r.component as any).replace('.tsx', '')
-          // ;(r as any).infoID = r.info?.id
-          return r
-        })
-        .sort((a, b) => {
-          if (a.path < b.path) return -1
-
-          if (a.path > b.path) return 1
-
-          return 0
-        })
-      const sortedNewRoutesDefinitions = newRoutesDefinitions
-        // .filter(r => r.path.includes('/nested'))
-        .map(r => {
-          r.component = (r.component as any).replace('.tsx', '')
-          // ;(r as any).infoID = r.info?.id
-          return r
-        })
-        .sort((a, b) => {
-          if (a.path < b.path) return -1
-
-          if (a.path > b.path) return 1
-
-          return 0
-        })
-      console.clear()
-      // console.log({ sortedRoutesDefinitions, sortedNewRoutesDefinitions })
-      console.log(microdiff(sortedRoutesDefinitions, sortedNewRoutesDefinitions))
-    } catch (error) {
-      logger.error(error, { timestamp: true })
-    }
-
-    // const routesObject = {} as Record<string, any>
-
-    // try {
-    //   esbuildPlugin = esbuildPlugin || (await import('rollup-plugin-esbuild')).default
-    //   set = set || (await import('lodash-es/set')).default
-
-    //   const build = await rollup({
-    //     input: routesDefinitions.map(route => {
-    //       set(
-    //         routesObject,
-    //         [...route.path.split('/').filter(Boolean).map(useReplacements), 'route'],
-    //         route.path || '/',
-    //       )
-
-    //       return path.join(path.dirname(resolvedOptions.outputPath), route.info!.id + '.tsx')
-    //     }),
-    //     logLevel: 'silent',
-    //     plugins: [esbuildPlugin({ target: 'esnext', logLevel: 'silent' })],
-    //   })
-
-    //   const generated = await build.generate({})
-
-    //   const output = generated.output as (typeof generated.output)[0][]
-
-    //   for (let i = 0; i < output.length; i++) {
-    //     const file = output[i]
-
-    //     if (!file.facadeModuleId) {
-    //       continue
-    //     }
-
-    //     if (file.exports.includes('searchParams')) {
-    //       const route = routesDefinitions.find(route => {
-    //         return (
-    //           path
-    //             .normalize(path.join(path.dirname(resolvedOptions.outputPath), route.info!.id))
-    //             .replace('.tsx', '') === path.normalize(file.facadeModuleId!).replace('.tsx', '')
-    //         )
-    //       })
-
-    //       const routePath = route?.path
-
-    //       if (routePath) {
-    //         const asName = `searchParams${searchParamsImports.length}`
-
-    //         searchParamsImports.push(
-    //           `import type { searchParams as ${asName} } from "${route.info!.id}"`,
-    //         )
-
-    //         resolvedOptions.searchParamsSchemas[routePath] = `{} as typeof ${asName}` as any
-    //       }
-    //     }
-    //   }
-    // } catch (error) {
-    //   logger.error(error, { timestamp: true })
-    // }
-
-    // // logger.info(routesObject)
-
-    // routesDefinitions.length = 0
-    // routesDefinitions.push(...newRoutesDefinitions)
-
     const routes = JSON.stringify(defineRoutes(routesDefinitions), null, 2)
       // replace the recognizable string with the actual lazy import
       .replace(/('|"|`)?\${3}('|"|`)?/g, '')
       // https://stackoverflow.com/a/11233515/10019771
+      .replace(/"([^"]+)":/g, '$1:')
+      .replace(/\uFFFF/g, '\\"')
+
+    const routesMap = JSON.stringify(routesObject, null, 2) // https://stackoverflow.com/a/11233515/10019771
       .replace(/"([^"]+)":/g, '$1:')
       .replace(/\uFFFF/g, '\\"')
 
@@ -623,6 +407,7 @@ const generateTypedRoutes = async (resolvedOptions: Required<TypedRoutesOptions>
     const outputFile = createOutputFile({
       ...resolvedOptions,
       routes,
+      routesMap,
       searchParamsSchemas,
       SearchParamsRoutes,
       StaticTypedRoutes,
@@ -642,6 +427,8 @@ const generateTypedRoutes = async (resolvedOptions: Required<TypedRoutesOptions>
       throw error
     }
   } finally {
+    await new Promise(resolve => setTimeout(resolve, 100))
+
     isRunning = false
   }
 }
@@ -681,20 +468,21 @@ export const solidTypedRoutesPlugin = (options: TypedRoutesOptions = DEFAULTS) =
 
   return {
     name: 'solid-typed-routes',
-    api: 'serve',
+    enforce: 'pre',
     buildStart() {
       pluginDev && this.addWatchFile(pluginFilesDir)
 
       generateTypedRoutes(resolvedOptions)
     },
-    // configureServer(server) {
-    //   pluginDev && server.watcher.add(pluginFilesDir)
-    // },
     watchChange(changePath) {
       if (pluginDev) {
-        const pluginRelative = path.relative(pluginFilesDir, changePath)
-        const isPluginFile =
-          pluginRelative && !pluginRelative.startsWith('..') && !path.isAbsolute(pluginRelative)
+        const isPluginFile = ['src', 'static']
+          .map(dir => {
+            return path.join(pluginFilesDir, dir).replace(/\\/g, '/')
+          })
+          .some(src => {
+            return changePath.startsWith(src)
+          })
 
         if (isPluginFile) {
           return generateTypedRoutes(resolvedOptions)

@@ -65,7 +65,7 @@ type TypedRoutesOptions = {
  */
 declare const solidTypedRoutesPlugin: (options?: TypedRoutesOptions) => {
     name: string;
-    api: string;
+    enforce: "pre";
     buildStart(this: rollup.PluginContext): void;
     watchChange(this: rollup.PluginContext, changePath: string): Promise<void>;
 };

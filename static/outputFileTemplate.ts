@@ -9,6 +9,8 @@ export const replacements: Record<string, string> = $$$replacements$$$ as const
 // @ts-ignore
 export const routes = $$$routes$$$ as const satisfies RouteDefinition[]
 // @ts-ignore
+export const routesMap = $$$routesMap$$$ as const
+// @ts-ignore
 export type StaticTypedRoutes = $$$StaticTypedRoutes$$$
 // @ts-ignore
 export type DynamicTypedRoutes = $$$DynamicTypedRoutes$$$
@@ -129,7 +131,7 @@ export function useTypedSearchParams<const T extends SearchParamsRoutes>(schema:
     params: Partial<SearchParams>,
     options?: Partial<NavigateOptions>,
   ) => {
-    setSearchParams(parse(params), options)
+    return setSearchParams(parse(params), options)
   }
 
   return [typedSearchParams(), setTypedSearchParams] as const
