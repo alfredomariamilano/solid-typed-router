@@ -4,15 +4,17 @@ import path from 'node:path'
 import process from 'node:process'
 import { pathToFileURL } from 'node:url'
 import type { RouteDefinition } from '@solidjs/router'
+import type SetType from 'lodash-es/set'
 import { rollup } from 'rollup'
-// import type dtsType from 'rollup-plugin-dts'
-import type esbuildType from 'rollup-plugin-esbuild'
+// import type DtsPluginType from 'rollup-plugin-dts'
+import type EsbuildPluginType from 'rollup-plugin-esbuild'
 import type { BaseIssue, BaseSchema } from 'valibot'
 import type { Plugin } from 'vite'
 import { createLogger } from 'vite'
 
-let esbuild: typeof esbuildType
-// let dts: typeof dtsType
+let esbuildPlugin: typeof EsbuildPluginType
+let set: typeof SetType
+// let dtsPlugin: typeof DtsPluginType
 // import { defineConfig, mergeConfig } from 'vitest/config'
 // import { tanstackViteConfig } from '@tanstack/config/vite'
 
@@ -176,6 +178,16 @@ const generateTypedRoutes = async (resolvedOptions: Required<TypedRoutesOptions>
       throw new Error(message)
     }
 
+    const useReplacements = (string: string) => {
+      return Object.entries(resolvedOptions.replacements)
+        .sort((a, b) => {
+          return b[1].length - a[1].length
+        })
+        .reduce((acc, [key, value]) => {
+          return acc.split(key).join(value)
+        }, string)
+    }
+
     isRunning = true
 
     const { root, routesPath, outputPath } = resolvedOptions
@@ -293,98 +305,40 @@ const generateTypedRoutes = async (resolvedOptions: Required<TypedRoutesOptions>
       }
     }
 
-    // try {
-    //   const validPathRegex = /^(\w|\d|_|\-|\.|\\|\/|\[|\]|\(|\))+$/g
-
-    //   const routesFilesPaths = fs
-    //     .readdirSync(routesPath, { recursive: true })
-    //     .reduce((acc, routePath_) => {
-    //       const routePath = routePath_.toString()
-    //       const absolutePath = path.resolve(routesPath, routePath)
-
-    //       if (fs.lstatSync(absolutePath).isDirectory()) return acc
-
-    //       if (!routePath.match(validPathRegex)?.[0]) {
-    //         throwError(
-    //           `Invalid route path "${routePath}". Routes must conform to the regex ${validPathRegex}`,
-    //         )
-    //         // logger.info(`Invalid route path "${routePath}"`, { timestamp: true })
-    //       } else {
-    //         // logger.info(`Valid route path "${routePath}"`, { timestamp: true })
-    //       }
-
-    //       acc.push(absolutePath)
-
-    //       return acc
-    //     }, [] as string[])
-
-    //   esbuild = esbuild || (await import('rollup-plugin-esbuild')).default
-    //   // dts = dts || (await import('rollup-plugin-dts')).default
-
-    //   const build = await rollup({
-    //     input: routesFilesPaths,
-    //     logLevel: 'silent',
-    //     plugins: [esbuild({ target: 'esnext', logLevel: 'silent' })],
-    //   })
-
-    //   const generated = await build.generate({})
-
-    //   const output = generated.output as (typeof generated.output)[0][]
-
-    //   const newRoutesDefintions = [] as RouteDefinition[]
-
-    //   for (let i = 0; i < output.length; i++) {
-    //     const file = output[i]
-
-    //     if (file.facadeModuleId) {
-    //       const relativePath = path.relative(routesPath, file.facadeModuleId)
-
-    //       const isRoute = !relativePath.startsWith('..')
-
-    //       if (isRoute) {
-    //         logger.warn(relativePath, { timestamp: true })
-
-    //         const basename = path.basename(relativePath)
-    //         const ext = path.extname(relativePath)
-
-    //         let routePath = relativePath
-    //           .replace(new RegExp(`\\${ext}$`), '')
-    //           .replace(/\[\.{3}/g, '*')
-    //           .replace(/\[([^\]]+)\]/g, ':$1')
-    //           .replace(/\]/g, '')
-    //           .replace(/\\/g, '/')
-    //           .replace(/\(.+\)\/?/g, '')
-    //           .replace(/^index$|\./g, '/')
-
-    //         routePath = routePath.startsWith('/') ? routePath : `/${routePath}`
-
-    //         if (basename.match(/\(.+\)\/?/g)) {
-    //           routePath = ''
-    //         }
-
-    //         console.log({ routePath })
-
-    //         if (file.exports.includes('searchParams')) {
-    //           resolvedOptions.searchParamsSchemas[relativePath] = {} as any
-    //         }
-    //       }
-    //     }
-    //   }
-    // } catch (error) {
-    //   logger.error(error, { timestamp: true })
-    // }
-
     const searchParamsImports = [] as string[]
-
+    const newRoutesDefinitions = [] as RouteDefinition[]
     try {
-      esbuild = esbuild || (await import('rollup-plugin-esbuild')).default
+      const validPathRegex = /^(\w|\d|_|\-|\.|\\|\/|\[|\]|\(|\))+$/g
+
+      const routesFilesPaths = fs
+        .readdirSync(routesPath, { recursive: true })
+        .reduce((acc, routePath_) => {
+          const routePath = routePath_.toString()
+          const absolutePath = path.resolve(routesPath, routePath)
+
+          if (fs.lstatSync(absolutePath).isDirectory()) return acc
+
+          if (!routePath.match(validPathRegex)?.[0]) {
+            throwError(
+              `Invalid route path "${routePath}". Routes must conform to the regex ${validPathRegex}`,
+            )
+            // logger.info(`Invalid route path "${routePath}"`, { timestamp: true })
+          } else {
+            // logger.info(`Valid route path "${routePath}"`, { timestamp: true })
+          }
+
+          acc.push(absolutePath)
+
+          return acc
+        }, [] as string[])
+
+      esbuildPlugin = esbuildPlugin || (await import('rollup-plugin-esbuild')).default
+      // dtsPlugin = dtsPlugin || (await import('rollup-plugin-dts')).default
 
       const build = await rollup({
-        input: routesDefinitions.map(route =>
-          path.join(path.dirname(resolvedOptions.outputPath), route.info!.id + '.tsx'),
-        ),
+        input: routesFilesPaths,
         logLevel: 'silent',
-        plugins: [esbuild({ target: 'esnext', logLevel: 'silent' })],
+        plugins: [esbuildPlugin({ target: 'esnext', logLevel: 'silent' })],
       })
 
       const generated = await build.generate({})
@@ -394,35 +348,174 @@ const generateTypedRoutes = async (resolvedOptions: Required<TypedRoutesOptions>
       for (let i = 0; i < output.length; i++) {
         const file = output[i]
 
-        if (!file.facadeModuleId) {
-          continue
-        }
+        if (file.facadeModuleId) {
+          const relativePath = path.relative(routesPath, file.facadeModuleId).replace(/\\/g, '/')
 
-        if (file.exports.includes('searchParams')) {
-          const route = routesDefinitions.find(route => {
-            return (
-              path
-                .normalize(path.join(path.dirname(resolvedOptions.outputPath), route.info!.id))
-                .replace('.tsx', '') === path.normalize(file.facadeModuleId!).replace('.tsx', '')
-            )
-          })
+          const isRoute = !relativePath.startsWith('..')
 
-          const routePath = route?.path
+          if (isRoute) {
+            // logger.warn(relativePath, { timestamp: true })
 
-          if (routePath) {
-            const asName = `searchParams${searchParamsImports.length}`
+            // const basename = path.basename(relativePath)
+            const ext = path.extname(relativePath)
 
-            searchParamsImports.push(
-              `import type { searchParams as ${asName} } from "${route.info!.id}"`,
-            )
+            let routePath = relativePath
+              .replace(new RegExp(`\\${ext}$`), '')
+              .replace(/\[\.{3}/g, '*')
+              .replace(/\[([^\]]+)\]/g, ':$1')
+              .replace(/\]/g, '')
+              .replace(/\\/g, '/')
+              .replace(/\/?\(.+\)/g, '')
+              .replace(/^index$/g, '/')
+              .replace(/index$/g, '')
 
-            resolvedOptions.searchParamsSchemas[routePath] = `{} as typeof ${asName}` as any
+            routePath = routePath
+              ? routePath.startsWith('/')
+                ? routePath
+                : `/${routePath}`
+              : routePath
+
+            // console.log({ relativePath, routePath })
+
+            // if (basename.match(/\(.+\)\/?/g)) {
+            //   routePath = ''
+            // }
+
+            let relativePathFromOutput = path
+              .relative(
+                path.dirname(resolvedOptions.outputPath),
+                path.join(resolvedOptions.routesPath, relativePath),
+              )
+              .replace(/\\/g, '/')
+
+            if (!relativePathFromOutput.startsWith('.')) {
+              relativePathFromOutput = './' + relativePathFromOutput
+            }
+
+            // console.log({ routePath, relativePath })
+            const isRoute = relativePathFromOutput.endsWith('.tsx')
+
+            if (isRoute) {
+              newRoutesDefinitions.push({
+                path: routePath,
+                component:
+                  `$$$lazy(() => import('${relativePathFromOutput.replace(new RegExp(`\\${ext}$`), '')}'))$$$` as any,
+                info: {
+                  id: relativePath.replace(new RegExp(`\\${ext}$`), ''),
+                },
+              })
+
+              if (file.exports.includes('searchParams')) {
+                const asName = `searchParams${searchParamsImports.length}`
+
+                searchParamsImports.push(
+                  `import type { searchParams as ${asName} } from "${relativePathFromOutput}"`,
+                )
+
+                resolvedOptions.searchParamsSchemas[routePath] = `{} as typeof ${asName}` as any
+              }
+            }
           }
         }
       }
+
+      // const { default: microdiff } = await import('microdiff')
+      // const sortedRoutesDefinitions = routesDefinitions
+      //   .filter(r => r.path.includes('nested'))
+      //   .map(r => {
+      //     r.component = (r.component as any).replace('.tsx', '')
+      //     r.id = r.info?.id
+      //     return r
+      //   })
+      //   .sort((a, b) => {
+      //     if (a.path < b.path) return -1
+
+      //     if (a.path > b.path) return 1
+
+      //     return 0
+      //   })
+      // const sortedNewRoutesDefinitions = newRoutesDefinitions
+      //   .filter(r => r.path.includes('/nested'))
+      //   .map(r => {
+      //     r.component = (r.component as any).replace('.tsx', '')
+      //     r.id = r.info?.id
+      //     return r
+      //   })
+      //   .sort((a, b) => {
+      //     if (a.path < b.path) return -1
+
+      //     if (a.path > b.path) return 1
+
+      //     return 0
+      //   })
+      // console.clear()
+      // console.log({ sortedRoutesDefinitions, sortedNewRoutesDefinitions })
+      // // console.log({ diff: microdiff(sortedRoutesDefinitions, sortedNewRoutesDefinitions) })
     } catch (error) {
       logger.error(error, { timestamp: true })
     }
+
+    // const routesObject = {} as Record<string, any>
+
+    // try {
+    //   esbuildPlugin = esbuildPlugin || (await import('rollup-plugin-esbuild')).default
+    //   set = set || (await import('lodash-es/set')).default
+
+    //   const build = await rollup({
+    //     input: routesDefinitions.map(route => {
+    //       set(
+    //         routesObject,
+    //         [...route.path.split('/').filter(Boolean).map(useReplacements), 'route'],
+    //         route.path || '/',
+    //       )
+
+    //       return path.join(path.dirname(resolvedOptions.outputPath), route.info!.id + '.tsx')
+    //     }),
+    //     logLevel: 'silent',
+    //     plugins: [esbuildPlugin({ target: 'esnext', logLevel: 'silent' })],
+    //   })
+
+    //   const generated = await build.generate({})
+
+    //   const output = generated.output as (typeof generated.output)[0][]
+
+    //   for (let i = 0; i < output.length; i++) {
+    //     const file = output[i]
+
+    //     if (!file.facadeModuleId) {
+    //       continue
+    //     }
+
+    //     if (file.exports.includes('searchParams')) {
+    //       const route = routesDefinitions.find(route => {
+    //         return (
+    //           path
+    //             .normalize(path.join(path.dirname(resolvedOptions.outputPath), route.info!.id))
+    //             .replace('.tsx', '') === path.normalize(file.facadeModuleId!).replace('.tsx', '')
+    //         )
+    //       })
+
+    //       const routePath = route?.path
+
+    //       if (routePath) {
+    //         const asName = `searchParams${searchParamsImports.length}`
+
+    //         searchParamsImports.push(
+    //           `import type { searchParams as ${asName} } from "${route.info!.id}"`,
+    //         )
+
+    //         resolvedOptions.searchParamsSchemas[routePath] = `{} as typeof ${asName}` as any
+    //       }
+    //     }
+    //   }
+    // } catch (error) {
+    //   logger.error(error, { timestamp: true })
+    // }
+
+    // // logger.info(routesObject)
+
+    routesDefinitions.length = 0
+    routesDefinitions.push(...newRoutesDefinitions)
 
     const routes = JSON.stringify(defineRoutes(routesDefinitions), null, 2)
       // replace the recognizable string with the actual lazy import
@@ -463,13 +556,7 @@ const generateTypedRoutes = async (resolvedOptions: Required<TypedRoutesOptions>
             for (let i = 0; i < params.length; i++) {
               const param = params[i]
 
-              const parsedParam = Object.entries(resolvedOptions.replacements)
-                .sort((a, b) => {
-                  return b[1].length - a[1].length
-                })
-                .reduce((acc, [key, value]) => {
-                  return acc.split(key).join(value)
-                }, param)
+              const parsedParam = useReplacements(param)
 
               if (routeParams.includes(parsedParam)) {
                 throwError(

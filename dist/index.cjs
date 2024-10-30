@@ -8,7 +8,7 @@ var node_url = require('node:url');
 var rollup = require('rollup');
 var vite = require('vite');
 
-let esbuild;
+let esbuildPlugin;
 const logger = vite.createLogger("info", { prefix: "[solid-typed-routes]", allowClearScreen: true });
 const DEFAULTS = {
   root: process.cwd(),
@@ -90,6 +90,13 @@ const generateTypedRoutes = async (resolvedOptions) => {
     const throwError = (message) => {
       throw new Error(message);
     };
+    const useReplacements = (string) => {
+      return Object.entries(resolvedOptions.replacements).sort((a, b) => {
+        return b[1].length - a[1].length;
+      }).reduce((acc, [key, value]) => {
+        return acc.split(key).join(value);
+      }, string);
+    };
     isRunning = true;
     const { root, routesPath, outputPath } = resolvedOptions;
     let routesDefinitions = resolvedOptions.routesDefinitions;
@@ -169,39 +176,71 @@ const generateTypedRoutes = async (resolvedOptions) => {
       }
     }
     const searchParamsImports = [];
+    const newRoutesDefinitions = [];
     try {
-      esbuild = esbuild || (await import('rollup-plugin-esbuild')).default;
+      const validPathRegex = /^(\w|\d|_|\-|\.|\\|\/|\[|\]|\(|\))+$/g;
+      const routesFilesPaths = fs.readdirSync(routesPath, { recursive: true }).reduce((acc, routePath_) => {
+        const routePath = routePath_.toString();
+        const absolutePath = path.resolve(routesPath, routePath);
+        if (fs.lstatSync(absolutePath).isDirectory()) return acc;
+        if (!routePath.match(validPathRegex)?.[0]) {
+          throwError(
+            `Invalid route path "${routePath}". Routes must conform to the regex ${validPathRegex}`
+          );
+        } else {
+        }
+        acc.push(absolutePath);
+        return acc;
+      }, []);
+      esbuildPlugin = esbuildPlugin || (await import('rollup-plugin-esbuild')).default;
       const build = await rollup.rollup({
-        input: routesDefinitions.map(
-          (route) => path.join(path.dirname(resolvedOptions.outputPath), route.info.id + ".tsx")
-        ),
+        input: routesFilesPaths,
         logLevel: "silent",
-        plugins: [esbuild({ target: "esnext", logLevel: "silent" })]
+        plugins: [esbuildPlugin({ target: "esnext", logLevel: "silent" })]
       });
       const generated = await build.generate({});
       const output = generated.output;
       for (let i = 0; i < output.length; i++) {
         const file = output[i];
-        if (!file.facadeModuleId) {
-          continue;
-        }
-        if (file.exports.includes("searchParams")) {
-          const route = routesDefinitions.find((route2) => {
-            return path.normalize(path.join(path.dirname(resolvedOptions.outputPath), route2.info.id)).replace(".tsx", "") === path.normalize(file.facadeModuleId).replace(".tsx", "");
-          });
-          const routePath = route?.path;
-          if (routePath) {
-            const asName = `searchParams${searchParamsImports.length}`;
-            searchParamsImports.push(
-              `import type { searchParams as ${asName} } from "${route.info.id}"`
-            );
-            resolvedOptions.searchParamsSchemas[routePath] = `{} as typeof ${asName}`;
+        if (file.facadeModuleId) {
+          const relativePath = path.relative(routesPath, file.facadeModuleId).replace(/\\/g, "/");
+          const isRoute = !relativePath.startsWith("..");
+          if (isRoute) {
+            const ext = path.extname(relativePath);
+            let routePath = relativePath.replace(new RegExp(`\\${ext}$`), "").replace(/\[\.{3}/g, "*").replace(/\[([^\]]+)\]/g, ":$1").replace(/\]/g, "").replace(/\\/g, "/").replace(/\/?\(.+\)/g, "").replace(/^index$/g, "/").replace(/index$/g, "");
+            routePath = routePath ? routePath.startsWith("/") ? routePath : `/${routePath}` : routePath;
+            let relativePathFromOutput = path.relative(
+              path.dirname(resolvedOptions.outputPath),
+              path.join(resolvedOptions.routesPath, relativePath)
+            ).replace(/\\/g, "/");
+            if (!relativePathFromOutput.startsWith(".")) {
+              relativePathFromOutput = "./" + relativePathFromOutput;
+            }
+            const isRoute2 = relativePathFromOutput.endsWith(".tsx");
+            if (isRoute2) {
+              newRoutesDefinitions.push({
+                path: routePath,
+                component: `$$$lazy(() => import('${relativePathFromOutput.replace(new RegExp(`\\${ext}$`), "")}'))$$$`,
+                info: {
+                  id: relativePath.replace(new RegExp(`\\${ext}$`), "")
+                }
+              });
+              if (file.exports.includes("searchParams")) {
+                const asName = `searchParams${searchParamsImports.length}`;
+                searchParamsImports.push(
+                  `import type { searchParams as ${asName} } from "${relativePathFromOutput}"`
+                );
+                resolvedOptions.searchParamsSchemas[routePath] = `{} as typeof ${asName}`;
+              }
+            }
           }
         }
       }
     } catch (error) {
       logger.error(error, { timestamp: true });
     }
+    routesDefinitions.length = 0;
+    routesDefinitions.push(...newRoutesDefinitions);
     const routes = JSON.stringify(defineRoutes(routesDefinitions), null, 2).replace(/('|"|`)?\${3}('|"|`)?/g, "").replace(/"([^"]+)":/g, "$1:").replace(/\uFFFF/g, '\\"');
     const searchParamsSchemas = JSON.stringify(resolvedOptions.searchParamsSchemas, null, 2).replace(/: "([^"]+)"/g, ": $1");
     const SearchParamsRoutes = Object.keys(resolvedOptions.searchParamsSchemas).map((k) => `'${k}'`).join(" | ");
@@ -216,11 +255,7 @@ const generateTypedRoutes = async (resolvedOptions) => {
           const params = route.path.match(/(:|\*)([^/]+)/g) || [];
           for (let i = 0; i < params.length; i++) {
             const param = params[i];
-            const parsedParam = Object.entries(resolvedOptions.replacements).sort((a, b) => {
-              return b[1].length - a[1].length;
-            }).reduce((acc2, [key, value]) => {
-              return acc2.split(key).join(value);
-            }, param);
+            const parsedParam = useReplacements(param);
             if (routeParams.includes(parsedParam)) {
               throwError(
                 `Duplicate route parameter" ${param}" (parsed: "${parsedParam}") in "${route.path}"`
