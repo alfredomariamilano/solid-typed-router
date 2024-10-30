@@ -138,8 +138,6 @@ export function useTypedSearchParams<const T extends SearchParamsRoutes>(schema:
   }
 
   const typedSearchParams = createMemo(() => {
-    console.log('asdasd')
-
     return parse(
       Object.entries(searchParams).reduce((acc, [key, value]) => {
         try {
@@ -159,9 +157,13 @@ export function useTypedSearchParams<const T extends SearchParamsRoutes>(schema:
   ) => {
     return setSearchParams(
       Object.entries(parse(params)).reduce((acc, [key, value]) => {
-        if (typeof value === 'object') {
-          acc[key] = JSON.stringify(value)
-        } else {
+        try {
+          if (typeof value === 'object') {
+            acc[key] = JSON.stringify(value)
+          } else {
+            acc[key] = value
+          }
+        } catch {
           acc[key] = value
         }
 
@@ -171,9 +173,7 @@ export function useTypedSearchParams<const T extends SearchParamsRoutes>(schema:
     )
   }
 
-  const returns = [typedSearchParams, setTypedSearchParams] as const
-
-  return returns
+  return [typedSearchParams, setTypedSearchParams] as const
 }
 
 declare module '@solidjs/router' {
