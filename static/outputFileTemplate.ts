@@ -1,7 +1,7 @@
 import type { MatchFilters, NavigateOptions, Params, RouteDefinition } from '@solidjs/router'
 import { A, useMatch, useNavigate, useSearchParams } from '@solidjs/router'
 import type { Accessor, ComponentProps, JSX } from 'solid-js'
-import { lazy, splitProps } from 'solid-js'
+import { createMemo, lazy, splitProps } from 'solid-js'
 import type { BaseIssue, BaseSchema, InferInput } from 'valibot'
 import { safeParse } from 'valibot'
 // @ts-ignore
@@ -63,8 +63,6 @@ export const getTypedRoute = <T extends TypedRoutes>(
   if (params) {
     Object.keys(params).forEach(key => {
       const dynamicParamKey = useReplacements(key, true)
-
-      console.log({ key, dynamicParamKey })
 
       parsedLink = parsedLink.split(dynamicParamKey).join(params[key]) as T
     })
@@ -139,18 +137,43 @@ export function useTypedSearchParams<const T extends SearchParamsRoutes>(schema:
     return safeParse<SearchParamsSchema>(searchParamsSchemas[schema], params).output as SearchParams
   }
 
-  const typedSearchParams = () => {
-    return parse(searchParams)
-  }
+  const typedSearchParams = createMemo(() => {
+    console.log('asdasd')
+
+    return parse(
+      Object.entries(searchParams).reduce((acc, [key, value]) => {
+        try {
+          acc[key] = JSON.parse(value as any)
+        } catch {
+          acc[key] = value
+        }
+
+        return acc
+      }, {}),
+    )
+  })
 
   const setTypedSearchParams = (
     params: Partial<SearchParams>,
     options?: Partial<NavigateOptions>,
   ) => {
-    return setSearchParams(parse(params), options)
+    return setSearchParams(
+      Object.entries(parse(params)).reduce((acc, [key, value]) => {
+        if (typeof value === 'object') {
+          acc[key] = JSON.stringify(value)
+        } else {
+          acc[key] = value
+        }
+
+        return acc
+      }, {}),
+      options,
+    )
   }
 
-  return [typedSearchParams(), setTypedSearchParams] as const
+  const returns = [typedSearchParams, setTypedSearchParams] as const
+
+  return returns
 }
 
 declare module '@solidjs/router' {

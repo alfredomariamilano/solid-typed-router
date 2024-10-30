@@ -1,7 +1,13 @@
 import * as rollup from 'rollup';
-import { RouteDefinition } from '@solidjs/router';
+import { RouteDefinition as RouteDefinition$1 } from '@solidjs/router';
 import { BaseSchema, BaseIssue } from 'valibot';
 
+type RouteDefinition = Omit<RouteDefinition$1, 'component'> & {
+    /**
+     * The path to the component file.
+     */
+    component: string;
+};
 type Replacements = {
     ':': string;
     '*': string;
