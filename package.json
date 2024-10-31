@@ -1,8 +1,13 @@
 {
   "name": "solid-typed-router",
   "version": "0.0.0",
-  "description": "",
+  "description": "A vite plugin to create typed routes for Solid projects, including Solid Start.",
   "type": "module",
+  "author": {
+    "name": "Alfredo Maria Milano",
+    "email": "hi@alfredomm.com",
+    "url": "https://www.alfredomm.com/"
+  },
   "scripts": {
     "build": "rollup -c",
     "dev": "rollup -c -w"
@@ -21,6 +26,7 @@
   },
   "license": "MIT",
   "dependencies": {
+    "copy-anything": "^4.0.2",
     "lodash-es": "^4.17.21"
   },
   "devDependencies": {

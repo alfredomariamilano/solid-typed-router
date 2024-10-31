@@ -14,7 +14,7 @@ const DEFAULTS = {
   root: process.cwd(),
   routesPath: "src/routes",
   typedRoutesPath: "src/typedRoutes.gen.ts",
-  typedSearchParamsPath: "src/typedSearchParams.gen.ts",
+  // typedSearchParamsPath: 'src/typedSearchParams.gen.ts',
   routesDefinitions: [],
   searchParamsSchemas: {},
   replacements: {
@@ -92,6 +92,7 @@ const generateTypedRoutes = async (resolvedOptions_) => {
     };
     const { routesPath, typedRoutesPath } = resolvedOptions;
     let routesDefinitions = resolvedOptions.routesDefinitions;
+    const hadSearchParamSchemas = Object.keys(resolvedOptions.searchParamsSchemas).length > 0;
     if (!fs.existsSync(routesPath) || !fs.lstatSync(routesPath).isDirectory()) {
       throwError(`Routes directory not found at ${routesPath}`);
     }
@@ -149,7 +150,7 @@ const generateTypedRoutes = async (resolvedOptions_) => {
                     id: relativePath.replace(new RegExp(`\\${ext}$`), "")
                   }
                 });
-                if (file.exports.includes("searchParams")) {
+                if (file.exports.includes("searchParams") && !resolvedOptions.searchParamsSchemas[routePath]) {
                   const asName = `searchParams${searchParamsImportsArray.length}`;
                   searchParamsImportsArray.push(
                     `import type { searchParams as ${asName} } from "${relativePathFromOutput}"`
@@ -176,7 +177,11 @@ const generateTypedRoutes = async (resolvedOptions_) => {
     const routes = JSON.stringify(defineRoutes(routesDefinitions), null, 2).replace(/('|"|`)?\${3}('|"|`)?/g, "").replace(/"([^"]+)":/g, "$1:").replace(/\uFFFF/g, '\\"');
     const routesMap = JSON.stringify(routesObject, null, 2).replace(/"([^"]+)":/g, "$1:").replace(/\uFFFF/g, '\\"');
     const searchParamsImports = searchParamsImportsArray.join("\n");
-    const searchParamsSchemas = JSON.stringify(resolvedOptions.searchParamsSchemas, null, 2).replace(/: "([^"]+)"/g, ": $1");
+    let searchParamsSchemas = JSON.stringify(resolvedOptions.searchParamsSchemas, null, 2);
+    searchParamsSchemas = hadSearchParamSchemas ? searchParamsSchemas : (
+      // https://stackoverflow.com/a/11233515/10019771
+      searchParamsSchemas.replace(/: "([^"]+)"/g, ": $1")
+    );
     const SearchParamsRoutes = Object.keys(resolvedOptions.searchParamsSchemas).map((k) => `'${k}'`).join(" | ");
     const { StaticTypedRoutes, DynamicTypedRoutes, DynamicTypedRoutesParams } = routesDefinitions.reduce(
       (acc, route) => {

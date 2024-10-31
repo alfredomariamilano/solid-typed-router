@@ -6,7 +6,7 @@ import type SetType from 'lodash-es/set'
 import { rollup } from 'rollup'
 import type EsbuildPluginType from 'rollup-plugin-esbuild'
 import type { BaseIssue, BaseSchema } from 'valibot'
-import type { Plugin, PluginOption } from 'vite'
+import type { Plugin } from 'vite'
 import { createLogger } from 'vite'
 
 const esbuildPluginImport = import('rollup-plugin-esbuild')
@@ -76,7 +76,7 @@ const DEFAULTS: Partial<TypedRoutesOptions> = {
   root: process.cwd(),
   routesPath: 'src/routes',
   typedRoutesPath: 'src/typedRoutes.gen.ts',
-  typedSearchParamsPath: 'src/typedSearchParams.gen.ts',
+  // typedSearchParamsPath: 'src/typedSearchParams.gen.ts',
   routesDefinitions: [],
   searchParamsSchemas: {},
   replacements: {
@@ -203,6 +203,7 @@ const generateTypedRoutes = async (resolvedOptions_: Required<TypedRoutesOptions
     const { routesPath, typedRoutesPath } = resolvedOptions
 
     let routesDefinitions = resolvedOptions.routesDefinitions
+    const hadSearchParamSchemas = Object.keys(resolvedOptions.searchParamsSchemas).length > 0
 
     if (!fs.existsSync(routesPath) || !fs.lstatSync(routesPath).isDirectory()) {
       throwError(`Routes directory not found at ${routesPath}`)
@@ -305,7 +306,10 @@ const generateTypedRoutes = async (resolvedOptions_: Required<TypedRoutesOptions
                   },
                 })
 
-                if (file.exports.includes('searchParams')) {
+                if (
+                  file.exports.includes('searchParams') &&
+                  !resolvedOptions.searchParamsSchemas[routePath]
+                ) {
                   const asName = `searchParams${searchParamsImportsArray.length}`
 
                   searchParamsImportsArray.push(
@@ -349,9 +353,12 @@ const generateTypedRoutes = async (resolvedOptions_: Required<TypedRoutesOptions
 
     const searchParamsImports = searchParamsImportsArray.join('\n')
 
-    const searchParamsSchemas = JSON.stringify(resolvedOptions.searchParamsSchemas, null, 2)
-      // https://stackoverflow.com/a/11233515/10019771
-      .replace(/: "([^"]+)"/g, ': $1')
+    let searchParamsSchemas = JSON.stringify(resolvedOptions.searchParamsSchemas, null, 2)
+
+    searchParamsSchemas = hadSearchParamSchemas
+      ? searchParamsSchemas
+      : // https://stackoverflow.com/a/11233515/10019771
+        searchParamsSchemas.replace(/: "([^"]+)"/g, ': $1')
 
     const SearchParamsRoutes = Object.keys(resolvedOptions.searchParamsSchemas)
       .map(k => `'${k}'`)
@@ -508,8 +515,8 @@ const pluginFilesDir = path.resolve(import.meta.dirname, '..')
  * @name solidTypedRoutesPlugin
  */
 export const solidTypedRoutesPlugin = (
-  options: TypedRoutesOptions = DEFAULTS,
-  // options: Omit<TypedRoutesOptions, 'routesDefinitions'> = DEFAULTS,
+  // options: TypedRoutesOptions = DEFAULTS,
+  options: Omit<TypedRoutesOptions, 'searchParamsSchemas' | 'typedSearchParamsPath'> = DEFAULTS,
 ): any => {
   const pluginDev = !!process.env.PLUGIN_DEV
 
@@ -580,5 +587,5 @@ export const solidTypedRoutesPlugin = (
         generateTypedRoutes(resolvedOptions)
       }
     },
-  } satisfies PluginOption
+  } satisfies Plugin
 }
