@@ -1,7 +1,7 @@
 // @ts-ignore
 $$$searchParamsImports$$$
 import type { MatchFilters, NavigateOptions, Params, RouteDefinition } from '@solidjs/router'
-import { A, useMatch, useNavigate, useSearchParams } from '@solidjs/router'
+import { A, useMatch, useNavigate, useParams, useSearchParams } from '@solidjs/router'
 import mergeWith from 'lodash-es/mergeWith'
 import type { Accessor, ComponentProps, JSX } from 'solid-js'
 import { createMemo, lazy, splitProps } from 'solid-js'
@@ -30,7 +30,8 @@ export type TypedRoutes = StaticTypedRoutes | DynamicTypedRoutes
 
 type DynamicTypedRouteParams<T extends DynamicTypedRoutes> = {
   params: {
-    [K in DynamicTypedRoutesParams[T][number]]: string | number
+    [K in DynamicTypedRoutesParams[T][number]]: string
+    // [K in DynamicTypedRoutesParams[T][number]]: string | number
   }
 }
 
@@ -98,6 +99,10 @@ export const useTypedMatch = <T extends TypedRoutes>(
   return useMatch(path, matchFilters) as unknown as Accessor<
     { path: T; params: Params[T] } | undefined
   >
+}
+
+export const useTypedParams = <T extends DynamicTypedRoutes>(_route?: T) => {
+  return useParams<DynamicTypedRouteParams<T>['params']>()
 }
 
 export type TypedLinkProps<T extends TypedRoutes> = Omit<ComponentProps<typeof A>, 'href'> & {
