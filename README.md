@@ -31,12 +31,12 @@ export default defineConfig({
 
 The plugin accepts the following options:
 
-- routesDefinitions (default: []): Array of route definitions.
-- searchParamsSchemas (default: {}): Definition of the search params schemas.
-- root (default: process.cwd()): The root directory of the project.
-- routesPath (default: 'src/routes'): The path to the routes directory.
-- outputPath (default: 'src/typedRoutes.gen.ts'): The path to the output file.
-- replacements (default: { ':': '$', '*': '$$', '.': '_dot_', '-': '_dash_', '+': '_plus_' }): Custom replacements for route parameters and route names.
+- routesDefinitions (default: `[]`): Array of route definitions.
+- searchParamsSchemas (default: `{}`): Definition of the search params schemas.
+- root (default: `process.cwd()`): The root directory of the project.
+- routesPath (default: `'src/routes'`): The path to the routes directory.
+- outputPath (default: `'src/typedRoutes.gen.ts'`): The path to the output file.
+- replacements (default: `{ ':': '$', '*': '$$', '.': '_dot_', '-': '_dash_', '+': '_plus_' }`): Custom replacements for route parameters and route names.
 
 ## Search Params Validation
 
