@@ -41,7 +41,7 @@ The plugin accepts the following options:
 
 ## Search Params Validation
 
-If you export a searchParams object from a route, the plugin will automatically create search params validation for that route. You need valibot >= 1.
+If you export a searchParams object from a route, the plugin will automatically create search params validation for that route. You need `valibot` >= 1 installed. Do so by running `npm i valibot@^1.0.0-beta.3`.
 ```typescript
 import { createSearchParams } from "@/generated/typedRoutes.gen"
 import { object, optional, pipe, string, transform } from "valibot"
