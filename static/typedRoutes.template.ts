@@ -101,8 +101,29 @@ export const useTypedMatch = <T extends TypedRoutes>(
   >
 }
 
-export const useTypedParams = <T extends DynamicTypedRoutes>(_route?: T) => {
-  return useParams<DynamicTypedRouteParams<T>['params']>()
+export const useTypedParams = <const T extends DynamicTypedRoutes>(route: T) => {
+  const params = useParams<DynamicTypedRouteParams<T>['params']>()
+
+  const typedParams = createMemo(() => {
+    const routeParts = route.split('/').filter(Boolean)
+
+    return Object.entries(params).reduce(
+      (acc, [key, value]) => {
+        for (const routePart of routeParts) {
+          Object.entries(replacements).forEach(([left]) => {
+            if (routePart.replace(left, '') === key) {
+              acc[useReplacements(routePart)] = value
+            }
+          })
+        }
+
+        return acc
+      },
+      {} as DynamicTypedRouteParams<T>['params'],
+    )
+  })
+
+  return typedParams
 }
 
 export type TypedLinkProps<T extends TypedRoutes> = Omit<ComponentProps<typeof A>, 'href'> & {
