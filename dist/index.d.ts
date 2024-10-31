@@ -73,6 +73,6 @@ type TypedRoutesOptions = {
  * @function
  * @name solidTypedRoutesPlugin
  */
-declare const solidTypedRoutesPlugin: (options?: Omit<TypedRoutesOptions, "searchParamsSchemas" | "typedSearchParamsPath">) => any;
+declare const solidTypedRoutesPlugin: (options?: Omit<TypedRoutesOptions, "searchParamsSchemas">) => any;
 
 export { solidTypedRoutesPlugin };

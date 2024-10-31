@@ -16,7 +16,7 @@ const DEFAULTS = {
   root: process.cwd(),
   routesPath: "src/routes",
   typedRoutesPath: "src/typedRoutes.gen.ts",
-  // typedSearchParamsPath: 'src/typedSearchParams.gen.ts',
+  typedSearchParamsPath: "src/typedSearchParams.gen.ts",
   routesDefinitions: [],
   searchParamsSchemas: {},
   replacements: {
@@ -70,6 +70,13 @@ const typedRoutesTemplatePath = path.resolve(
   "typedRoutes.template.ts"
 );
 let typedRoutesTemplate = fs.readFileSync(typedRoutesTemplatePath, "utf-8");
+const typedSearchParamsTemplatePath = path.resolve(
+  undefined,
+  "..",
+  "static",
+  "typedSearchParams.template.ts"
+);
+let typedSearchParamsTemplate = fs.readFileSync(typedSearchParamsTemplatePath, "utf-8");
 let isRunning = false;
 const generateTypedRoutes = async (resolvedOptions_) => {
   esbuildPlugin = esbuildPlugin || (await esbuildPluginImport).default;
@@ -216,6 +223,7 @@ const generateTypedRoutes = async (resolvedOptions_) => {
     );
     if (process.env.PLUGIN_DEV) {
       typedRoutesTemplate = fs.readFileSync(typedRoutesTemplatePath, "utf-8");
+      typedSearchParamsTemplate = fs.readFileSync(typedSearchParamsTemplatePath, "utf-8");
     }
     const createOutputFile = (template, values) => {
       let outputFile = "";
@@ -252,6 +260,18 @@ const generateTypedRoutes = async (resolvedOptions_) => {
       DynamicTypedRoutesParams
     });
     fs.writeFileSync(typedRoutesPath, typedRoutesFile);
+    const typedSearchParamsFile = createOutputFile(typedSearchParamsTemplate, {
+      ...resolvedOptions,
+      routes,
+      routesMap,
+      searchParamsSchemas: searchParamsSchemas.replaceAll("{} as typeof ", ""),
+      searchParamsImports: searchParamsImports.replaceAll("import type ", "export "),
+      SearchParamsRoutes,
+      StaticTypedRoutes,
+      DynamicTypedRoutes,
+      DynamicTypedRoutesParams
+    });
+    fs.writeFileSync(resolvedOptions.typedSearchParamsPath, typedSearchParamsFile);
     logger.info(`Typed routes generated in ${Math.round(performance.now() - start)}ms`, {
       timestamp: true
     });
