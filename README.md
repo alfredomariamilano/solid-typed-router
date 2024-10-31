@@ -12,7 +12,7 @@ npm i git+https://github.com/alfredomariamilano/solid-typed-router.git --save-de
 ## Usage
 
 Add the plugin to your Vite configuration:
-```javascript
+```typescript
 import { defineConfig } from 'vite';
 import solid from 'vite-plugin-solid';
 import { solidTypedRoutesPlugin } from 'solid-typed-routes-plugin';
@@ -35,13 +35,14 @@ The plugin accepts the following options:
 - searchParamsSchemas (default: `{}`): Definition of the search params schemas.
 - root (default: `process.cwd()`): The root directory of the project.
 - routesPath (default: `'src/routes'`): The path to the routes directory.
-- outputPath (default: `'src/typedRoutes.gen.ts'`): The path to the output file.
+- typedRoutesPath (default: `'src/typedRoutes.gen.ts'`): The path to the typed routes file.
+- typedSearchParamsPath (default: `'src/typedSearchParams.gen.ts'`): The path to the typed search params file.
 - replacements (default: `{ ':': '$', '*': '$$', '.': '_dot_', '-': '_dash_', '+': '_plus_' }`): Custom replacements for route parameters and route names.
 
 ## Search Params Validation
 
 If you export a searchParams object from a route, the plugin will automatically create search params validation for that route. You need valibot >= 1.
-```javascript
+```typescript
 import { createSearchParams } from "@/generated/typedRoutes.gen"
 import { object, optional, pipe, string, transform } from "valibot"
 
@@ -55,4 +56,20 @@ const searchParamsSchema = optional(
   )
 
 export const searchParams = createSearchParams('/thisroute', searchParamsSchema)
+```
+
+If you want to use the search params from other routes other than the current one, you can either import the generated `typedSearchParams.gen.ts` file in your app's entry
+```typescript
+import '~/typedSearchParams.gen.ts'
+```
+or you will have to preload the route
+```typescript
+// The example is in Solid Start
+import type { RouteDefinition } from '@solidjs/router'
+
+export const route = {
+  preload() {
+    // do anything  or nothing at all
+  } as RouteDefinition
+}
 ```
