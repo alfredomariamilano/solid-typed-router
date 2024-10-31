@@ -34,7 +34,7 @@ export function useTypedSearchParams<const T extends SearchParamsRoutes>(schema:
       return safeParse<SearchParamsSchema>(searchParamsSchemas[schema], params)
         .output as SearchParams
     } catch (error) {
-      console.log(error)
+      console.warn(error)
 
       return params as SearchParams
     }

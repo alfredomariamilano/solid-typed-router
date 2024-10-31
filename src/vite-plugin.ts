@@ -532,7 +532,6 @@ export const solidTypedRoutesPlugin = (
         const configAsAny = config as any
         // force compatibility with vinxi/solid-start
         if (configAsAny?.app?.config?.name === 'vinxi' && configAsAny?.router?.internals?.routes) {
-          console.log(configAsAny?.router?.internals?.routes)
           const router = configAsAny?.router?.internals?.routes
 
           const getRoutes = router?.getRoutes?.bind(router)

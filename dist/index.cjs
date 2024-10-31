@@ -275,7 +275,6 @@ const solidTypedRoutesPlugin = (options = DEFAULTS) => {
       try {
         const configAsAny = config;
         if (configAsAny?.app?.config?.name === "vinxi" && configAsAny?.router?.internals?.routes) {
-          console.log(configAsAny?.router?.internals?.routes);
           const router = configAsAny?.router?.internals?.routes;
           const getRoutes = router?.getRoutes?.bind(router);
           router.getRoutes = async () => {
