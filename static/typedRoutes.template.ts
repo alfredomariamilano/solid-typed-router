@@ -35,9 +35,9 @@ type DynamicTypedRouteParams<T extends DynamicTypedRoutes> = {
   }
 }
 
-export type TypedNavigateOptions<T extends TypedRoutes> = T extends DynamicTypedRoutes
-  ? Partial<NavigateOptions> & DynamicTypedRouteParams<T>
-  : Partial<NavigateOptions>
+export type TypedNavigateOptions<T extends TypedRoutes> = Partial<NavigateOptions> &
+  (T extends DynamicTypedRoutes ? DynamicTypedRouteParams<T> : {}) &
+  (T extends SearchParamsRoutes ? { search?: InferInput<(typeof searchParamsSchemas)[T]> } : {})
 
 interface TypedNavigator {
   <const T extends DynamicTypedRoutes>(to: T, options: TypedNavigateOptions<T>): void
@@ -77,10 +77,10 @@ export const getTypedRoute = <T extends TypedRoutes>(
   }
 
   if (search) {
-    console.log({ search })
     const searchParams = new URLSearchParams()
+    const parsedSearch = parseSearchParams(href as SearchParamsRoutes, search)
 
-    Object.entries(search).forEach(([key, value]) => {
+    Object.entries(parsedSearch).forEach(([key, value]) => {
       searchParams.set(key, JSON.stringify(value))
     })
 
@@ -182,21 +182,40 @@ export function createSearchParams<
   return schema
 }
 
-export function useTypedSearchParams<const T extends SearchParamsRoutes>(schema: T) {
-  type SearchParamsSchema = (typeof searchParamsSchemas)[T]
-  type SearchParams = InferInput<SearchParamsSchema>
-
-  const [searchParams, setSearchParams] = useSearchParams<SearchParams>()
-
-  const parse = (params: Partial<SearchParams>) => {
-    try {
-      return safeParse<SearchParamsSchema>(searchParamsSchemas[schema], params)
-        .output as SearchParams
-    } catch (error) {
-      console.warn(error)
-
-      return params as SearchParams
+export function parseSearchParams<const T extends SearchParamsRoutes>(
+  schema: T,
+  params: Partial<SearchParams<T>>,
+) {
+  try {
+    return safeParse<SearchParamsSchema<T>>(searchParamsSchemas[schema], params)
+      .output as SearchParams<T>
+  } catch (error) {
+    if (searchParamsSchemas[schema]) {
+      if (searchParamsSchemas[schema]['~validate']) {
+        console.warn(error)
+      } else {
+        console.warn(
+          `No search params validation found for route: ${schema}. If you want to use typed search params, you need to preload the route`,
+        )
+      }
+    } else {
+      console.warn(
+        `No search params schema found for route: ${schema}. If you want to use typed search params, you need to define a schema for this route.`,
+      )
     }
+
+    return params as SearchParams<T>
+  }
+}
+
+type SearchParamsSchema<T extends SearchParamsRoutes> = (typeof searchParamsSchemas)[T]
+type SearchParams<T extends SearchParamsRoutes> = InferInput<SearchParamsSchema<T>>
+
+export function useTypedSearchParams<const T extends SearchParamsRoutes>(schema: T) {
+  const [searchParams, setSearchParams] = useSearchParams<SearchParams<T>>()
+
+  const parse = (params: Partial<SearchParams<T>>) => {
+    return parseSearchParams(schema, params)
   }
 
   const typedSearchParams = createMemo(() => {
@@ -214,7 +233,7 @@ export function useTypedSearchParams<const T extends SearchParamsRoutes>(schema:
   })
 
   const setTypedSearchParams = (
-    params: Partial<SearchParams>,
+    params: Partial<SearchParams<T>>,
     options?: Partial<NavigateOptions>,
   ) => {
     return setSearchParams(
