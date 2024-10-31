@@ -6,7 +6,7 @@ import type SetType from 'lodash-es/set'
 import { rollup } from 'rollup'
 import type EsbuildPluginType from 'rollup-plugin-esbuild'
 import type { BaseIssue, BaseSchema } from 'valibot'
-import type { Plugin } from 'vite'
+import type { Plugin, PluginOption } from 'vite'
 import { createLogger } from 'vite'
 
 const esbuildPluginImport = import('rollup-plugin-esbuild')
@@ -510,7 +510,7 @@ const pluginFilesDir = path.resolve(import.meta.dirname, '..')
 export const solidTypedRoutesPlugin = (
   options: TypedRoutesOptions = DEFAULTS,
   // options: Omit<TypedRoutesOptions, 'routesDefinitions'> = DEFAULTS,
-) => {
+): any => {
   const pluginDev = !!process.env.PLUGIN_DEV
 
   pluginDev && logger.error('Development mode', { timestamp: true })
@@ -521,11 +521,43 @@ export const solidTypedRoutesPlugin = (
 
   return {
     name: 'solid-typed-routes',
-    enforce: 'post',
+    // enforce: 'post',
     buildStart() {
       pluginDev && this.addWatchFile(pluginFilesDir)
 
       generateTypedRoutes(resolvedOptions)
+    },
+    configResolved(config) {
+      try {
+        const configAsAny = config as any
+        // force compatibility with vinxi/solid-start
+        if (configAsAny?.app?.config?.name === 'vinxi' && configAsAny?.router?.internals?.routes) {
+          console.log(configAsAny?.router?.internals?.routes)
+          const router = configAsAny?.router?.internals?.routes
+
+          const getRoutes = router?.getRoutes?.bind(router)
+
+          router.getRoutes = async () => {
+            const routes = await getRoutes()
+
+            return routes.map(route => {
+              if (route?.$component?.pick) {
+                route.$component.pick.push('searchParams')
+              }
+
+              if (route?.$$route?.pick) {
+                route.$$route.pick.push('searchParams')
+              }
+
+              return route
+            })
+          }
+        }
+      } catch (error) {
+        logger.warn(error)
+      }
+
+      // return config
     },
     watchChange(changePath) {
       if (pluginDev) {
@@ -549,5 +581,5 @@ export const solidTypedRoutesPlugin = (
         generateTypedRoutes(resolvedOptions)
       }
     },
-  } satisfies Plugin
+  } satisfies PluginOption
 }

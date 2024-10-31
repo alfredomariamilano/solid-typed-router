@@ -266,10 +266,34 @@ const solidTypedRoutesPlugin = (options = DEFAULTS) => {
   generateTypedRoutes(resolvedOptions);
   return {
     name: "solid-typed-routes",
-    enforce: "post",
+    // enforce: 'post',
     buildStart() {
       pluginDev && this.addWatchFile(pluginFilesDir);
       generateTypedRoutes(resolvedOptions);
+    },
+    configResolved(config) {
+      try {
+        const configAsAny = config;
+        if (configAsAny?.app?.config?.name === "vinxi" && configAsAny?.router?.internals?.routes) {
+          console.log(configAsAny?.router?.internals?.routes);
+          const router = configAsAny?.router?.internals?.routes;
+          const getRoutes = router?.getRoutes?.bind(router);
+          router.getRoutes = async () => {
+            const routes = await getRoutes();
+            return routes.map((route) => {
+              if (route?.$component?.pick) {
+                route.$component.pick.push("searchParams");
+              }
+              if (route?.$$route?.pick) {
+                route.$$route.pick.push("searchParams");
+              }
+              return route;
+            });
+          };
+        }
+      } catch (error) {
+        logger.warn(error);
+      }
     },
     watchChange(changePath) {
       if (pluginDev) {

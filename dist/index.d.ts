@@ -1,4 +1,3 @@
-import * as rollup from 'rollup';
 import { RouteDefinition as RouteDefinition$1 } from '@solidjs/router';
 import { BaseSchema, BaseIssue } from 'valibot';
 
@@ -74,11 +73,6 @@ type TypedRoutesOptions = {
  * @function
  * @name solidTypedRoutesPlugin
  */
-declare const solidTypedRoutesPlugin: (options?: TypedRoutesOptions) => {
-    name: string;
-    enforce: "post";
-    buildStart(this: rollup.PluginContext): void;
-    watchChange(this: rollup.PluginContext, changePath: string): Promise<void>;
-};
+declare const solidTypedRoutesPlugin: (options?: TypedRoutesOptions) => any;
 
 export { solidTypedRoutesPlugin };
