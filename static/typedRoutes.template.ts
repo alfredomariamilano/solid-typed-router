@@ -62,6 +62,9 @@ export const useReplacements = (string: string, flip?: boolean) => {
 export const getTypedRoute = <T extends TypedRoutes>(
   href: T,
   params: T extends DynamicTypedRoutes ? Pick<DynamicTypedRouteParams<T>, 'params'> : never,
+  search?: T extends SearchParamsRoutes
+    ? InferInput<(typeof searchParamsSchemas)[T]>
+    : SearchParamsGeneric,
 ) => {
   let parsedLink = href
 
@@ -73,6 +76,17 @@ export const getTypedRoute = <T extends TypedRoutes>(
     })
   }
 
+  if (search) {
+    console.log({ search })
+    const searchParams = new URLSearchParams()
+
+    Object.entries(search).forEach(([key, value]) => {
+      searchParams.set(key, JSON.stringify(value))
+    })
+
+    parsedLink = `${parsedLink}?${searchParams.toString()}` as T
+  }
+
   return parsedLink
 }
 
@@ -80,10 +94,18 @@ export const useTypedNavigate = () => {
   const navigate = useNavigate()
 
   const typedNavigate: TypedNavigator = (...args) => {
-    const newArgs = args
+    const newArgs = (() => {
+      try {
+        return typeof structuredClone !== 'undefined'
+          ? structuredClone(args)
+          : JSON.parse(JSON.stringify(args))
+      } catch {
+        return [args[0], { ...args[1] }]
+      }
+    })()
 
     if (typeof args[0] === 'string') {
-      args[0] = getTypedRoute(args[0] as TypedRoutes, args[1]?.params)
+      newArgs[0] = getTypedRoute(newArgs[0] as TypedRoutes, newArgs[1]?.params, newArgs[1]?.search)
     }
 
     return navigate(...(newArgs as Parameters<typeof navigate>))
@@ -127,19 +149,22 @@ export const useTypedParams = <const T extends DynamicTypedRoutes>(route: T) => 
 }
 
 export type TypedLinkProps<T extends TypedRoutes> = Omit<ComponentProps<typeof A>, 'href'> & {
-  search?: `?${string}`
+  search?: SearchParamsGeneric
   href: T
-} & (T extends DynamicTypedRoutes ? DynamicTypedRouteParams<T> : { params?: never })
+} & (T extends DynamicTypedRoutes ? DynamicTypedRouteParams<T> : { params?: never }) &
+  (T extends SearchParamsRoutes ? { search?: InferInput<(typeof searchParamsSchemas)[T]> } : {})
 
 export function TypedLink<T extends TypedRoutes>(props: TypedLinkProps<T>): JSX.Element {
   const [link, rest] = splitProps(props, ['href', 'params', 'search'])
 
   const href = () => {
-    return getTypedRoute(link.href, link.params as any)
+    return getTypedRoute(link.href, link.params, link.search)
   }
 
-  return A({ ...rest, href: `${href()}${link.search || ''}` })
+  return A({ ...rest, href: href() })
 }
+
+type SearchParamsGeneric = Record<any, any>
 // @ts-ignore
 type SearchParamsRoutes = $$$SearchParamsRoutes$$$
 // @ts-ignore
