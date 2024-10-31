@@ -81,7 +81,11 @@ export const getTypedRoute = <T extends TypedRoutes>(
     const parsedSearch = parseSearchParams(href as SearchParamsRoutes, search)
 
     Object.entries(parsedSearch).forEach(([key, value]) => {
-      searchParams.set(key, JSON.stringify(value))
+      try {
+        searchParams.set(key, JSON.stringify(value))
+      } catch {
+        searchParams.set(key, value as any)
+      }
     })
 
     parsedLink = `${parsedLink}?${searchParams.toString()}` as T
