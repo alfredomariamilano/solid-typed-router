@@ -36,10 +36,11 @@ type DynamicTypedRouteParams<T extends DynamicTypedRoutes> = {
 
 export type TypedNavigateOptions<T extends TypedRoutes> = T extends DynamicTypedRoutes
   ? Partial<NavigateOptions> & DynamicTypedRouteParams<T>
-  : Partial<NavigateOptions> | undefined
+  : Partial<NavigateOptions>
 
 interface TypedNavigator {
-  <T extends TypedRoutes>(to: T, options: TypedNavigateOptions<T>): void
+  <const T extends DynamicTypedRoutes>(to: T, options: TypedNavigateOptions<T>): void
+  <const T extends StaticTypedRoutes>(to: T, options?: TypedNavigateOptions<T>): void
   (delta: number): void
 }
 
