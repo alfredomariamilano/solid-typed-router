@@ -3,9 +3,12 @@
 var fs = require('node:fs');
 var path = require('node:path');
 var process = require('node:process');
+var url = require('node:url');
 var rollup = require('rollup');
 var vite = require('vite');
 
+var _documentCurrentScript = typeof document !== 'undefined' ? document.currentScript : null;
+const dirname = undefined || path.dirname(url.fileURLToPath((typeof document === 'undefined' ? require('u' + 'rl').pathToFileURL(__filename).href : (_documentCurrentScript && _documentCurrentScript.tagName.toUpperCase() === 'SCRIPT' && _documentCurrentScript.src || new URL('index.cjs', document.baseURI).href))));
 const esbuildPluginImport = import('rollup-plugin-esbuild');
 let esbuildPlugin;
 const setImport = import('lodash-es/set.js');
@@ -63,15 +66,10 @@ function defineRoutes(fileRoutes) {
     return processRoute(prevRoutes, route, route.info.id, route.path);
   }, []);
 }
-const typedRoutesTemplatePath = path.resolve(
-  undefined,
-  "..",
-  "static",
-  "typedRoutes.template.ts"
-);
+const typedRoutesTemplatePath = path.resolve(dirname, "..", "static", "typedRoutes.template.ts");
 let typedRoutesTemplate = fs.readFileSync(typedRoutesTemplatePath, "utf-8");
 const typedSearchParamsTemplatePath = path.resolve(
-  undefined,
+  dirname,
   "..",
   "static",
   "typedSearchParams.template.ts"
@@ -283,7 +281,7 @@ const generateTypedRoutes = async (resolvedOptions_) => {
   }
   isRunning = false;
 };
-const pluginFilesDir = path.resolve(undefined, "..");
+const pluginFilesDir = path.resolve(dirname, "..");
 const solidTypedRoutesPlugin = (options = DEFAULTS) => {
   const pluginDev = !!process.env.PLUGIN_DEV;
   pluginDev && logger.error("Development mode", { timestamp: true });

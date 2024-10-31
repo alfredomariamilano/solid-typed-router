@@ -1,9 +1,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
+import url from 'node:url';
 import { rollup } from 'rollup';
 import { createLogger } from 'vite';
 
+const dirname = import.meta.dirname || path.dirname(url.fileURLToPath(import.meta.url));
 const esbuildPluginImport = import('rollup-plugin-esbuild');
 let esbuildPlugin;
 const setImport = import('lodash-es/set.js');
@@ -61,15 +63,10 @@ function defineRoutes(fileRoutes) {
     return processRoute(prevRoutes, route, route.info.id, route.path);
   }, []);
 }
-const typedRoutesTemplatePath = path.resolve(
-  import.meta.dirname,
-  "..",
-  "static",
-  "typedRoutes.template.ts"
-);
+const typedRoutesTemplatePath = path.resolve(dirname, "..", "static", "typedRoutes.template.ts");
 let typedRoutesTemplate = fs.readFileSync(typedRoutesTemplatePath, "utf-8");
 const typedSearchParamsTemplatePath = path.resolve(
-  import.meta.dirname,
+  dirname,
   "..",
   "static",
   "typedSearchParams.template.ts"
@@ -281,7 +278,7 @@ const generateTypedRoutes = async (resolvedOptions_) => {
   }
   isRunning = false;
 };
-const pluginFilesDir = path.resolve(import.meta.dirname, "..");
+const pluginFilesDir = path.resolve(dirname, "..");
 const solidTypedRoutesPlugin = (options = DEFAULTS) => {
   const pluginDev = !!process.env.PLUGIN_DEV;
   pluginDev && logger.error("Development mode", { timestamp: true });

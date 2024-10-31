@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
+import url from 'node:url'
 import type { RouteDefinition as SolidRouteDefinition } from '@solidjs/router'
 import type SetType from 'lodash-es/set'
 import { rollup } from 'rollup'
@@ -8,6 +9,8 @@ import type EsbuildPluginType from 'rollup-plugin-esbuild'
 import type { BaseIssue, BaseSchema } from 'valibot'
 import type { Plugin } from 'vite'
 import { createLogger } from 'vite'
+
+const dirname = import.meta.dirname || path.dirname(url.fileURLToPath(import.meta.url))
 
 const esbuildPluginImport = import('rollup-plugin-esbuild')
 let esbuildPlugin: typeof EsbuildPluginType
@@ -151,17 +154,12 @@ function defineRoutes(fileRoutes: RouteDefinition[]) {
     }, [] as RouteDefinition[])
 }
 
-const typedRoutesTemplatePath = path.resolve(
-  import.meta.dirname,
-  '..',
-  'static',
-  'typedRoutes.template.ts',
-)
+const typedRoutesTemplatePath = path.resolve(dirname, '..', 'static', 'typedRoutes.template.ts')
 
 let typedRoutesTemplate = fs.readFileSync(typedRoutesTemplatePath, 'utf-8')
 
 const typedSearchParamsTemplatePath = path.resolve(
-  import.meta.dirname,
+  dirname,
   '..',
   'static',
   'typedSearchParams.template.ts',
@@ -490,7 +488,7 @@ const generateTypedRoutes = async (resolvedOptions_: Required<TypedRoutesOptions
   isRunning = false
 }
 
-const pluginFilesDir = path.resolve(import.meta.dirname, '..')
+const pluginFilesDir = path.resolve(dirname, '..')
 
 /**
  * A Vite plugin for generating typed routes for Solid applications.
