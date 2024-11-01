@@ -507,10 +507,10 @@ const pluginFilesDir = path.resolve(dirname, '..')
  *
  * @example
  * ```typescript
- * import { solidTypedRoutesPlugin } from './vite-plugin';
+ * import { solidTypedRouterPlugin } from './vite-plugin';
  *
  * export default {
- *   plugins: [solidTypedRoutesPlugin({ /* options *\/ })],
+ *   plugins: [solidTypedRouterPlugin({ /* options *\/ })],
  * };
  * ```
  *
@@ -519,9 +519,9 @@ const pluginFilesDir = path.resolve(dirname, '..')
  * whenever there are changes in the route files.
  *
  * @function
- * @name solidTypedRoutesPlugin
+ * @name solidTypedRouterPlugin
  */
-export const solidTypedRoutesPlugin = (
+export const solidTypedRouterPlugin = (
   // options: TypedRoutesOptions = DEFAULTS,
   options: Omit<TypedRoutesOptions, 'searchParamsSchemas'> = DEFAULTS,
 ): any => {
