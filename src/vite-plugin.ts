@@ -409,7 +409,7 @@ const generateTypedRoutes = async (resolvedOptions_: Required<TypedRoutesOptions
         },
       )
 
-    const routes = JSON.stringify(defineRoutes(routesDefinitions), null, 2)
+    const routes = JSON.stringify(defineRoutes(structuredClone(routesDefinitions)), null, 2)
       // replace the recognizable string with the actual lazy import
       .replace(/('|"|`)?\${3}('|"|`)?/g, '')
       // https://stackoverflow.com/a/11233515/10019771

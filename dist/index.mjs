@@ -224,7 +224,7 @@ const generateTypedRoutes = async (resolvedOptions_) => {
         DynamicTypedRoutesParams: {}
       }
     );
-    const routes = JSON.stringify(defineRoutes(routesDefinitions), null, 2).replace(/('|"|`)?\${3}('|"|`)?/g, "").replace(/"([^"]+)":/g, "$1:").replace(/\uFFFF/g, '\\"');
+    const routes = JSON.stringify(defineRoutes(structuredClone(routesDefinitions)), null, 2).replace(/('|"|`)?\${3}('|"|`)?/g, "").replace(/"([^"]+)":/g, "$1:").replace(/\uFFFF/g, '\\"');
     const routesMap = JSON.stringify(routesObject, null, 2).replace(/"([^"]+)":/g, "$1:").replace(/\uFFFF/g, '\\"');
     const searchParamsImports = searchParamsImportsArray.join("\n");
     const searchParamsExports = searchParamsExportsArray.join("\n");
