@@ -54,12 +54,14 @@ function defineRoutes(fileRoutes) {
       routes.push(route);
       return routes;
     }
-    route.info.fullPath = route.path;
+    route.info.fullPath = full;
     route.path = route.path.replace(new RegExp(`^${parentRoute.path}`), "");
     processRoute(
       parentRoute.children || (parentRoute.children = []),
       route,
-      id.slice(parentRoute.info.id.length));
+      id.slice(parentRoute.info.id.length),
+      full
+    );
     return routes;
   }
   return fileRoutes.sort((a, b) => a.path.length - b.path.length).reduce((prevRoutes, route) => {

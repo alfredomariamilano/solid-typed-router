@@ -5,7 +5,7 @@
     "formatWithErrors": false,
     "indentStyle": "space",
     "indentWidth": 2,
-    "lineEnding": "lf",
+    "lineEnding": "crlf",
     "lineWidth": 100,
     "attributePosition": "auto",
     "ignore": [
@@ -122,7 +122,7 @@
       "enabled": true,
       "indentStyle": "space",
       "indentWidth": 2,
-      "lineEnding": "lf",
+      "lineEnding": "crlf",
       "lineWidth": 100
     }
   },
@@ -141,13 +141,13 @@
       }
     },
     {
-      "include": ["*.ts", "*.tsx", "*.mts", "*.cts", "*.js", "*.jsx", "*.mjs", "*.cjs"],
+      "include": ["*.ts", "*.tsx", "*.mts", "*.cts"],
       "formatter": {
         "attributePosition": "auto",
         "enabled": true,
         "indentStyle": "space",
         "indentWidth": 2,
-        "lineEnding": "lf",
+        "lineEnding": "crlf",
         "lineWidth": 100
       },
       "linter": {

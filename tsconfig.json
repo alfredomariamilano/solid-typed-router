@@ -9,7 +9,7 @@
     "jsxImportSource": "solid-js",
     "types": ["vite/client", "node"],
     "noEmit": true,
-    "isolatedModules": true,
+    "isolatedModules": true
   },
   "include": ["rollup.config.mjs", "**/*.gen.ts"]
 }

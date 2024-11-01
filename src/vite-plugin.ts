@@ -136,7 +136,7 @@ function defineRoutes(fileRoutes: RouteDefinition[]) {
       return routes
     }
 
-    route!.info!.fullPath = route.path
+    route!.info!.fullPath = full
     route.path = route.path.replace(new RegExp(`^${parentRoute.path}`), '')
 
     processRoute(
