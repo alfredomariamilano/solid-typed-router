@@ -51,6 +51,7 @@ function defineRoutes(fileRoutes) {
       routes.push(route);
       return routes;
     }
+    route.path = route.path.replace(new RegExp(`^${parentRoute.path}`), "");
     processRoute(
       parentRoute.children || (parentRoute.children = []),
       route,
@@ -143,18 +144,21 @@ const generateTypedRoutes = async (resolvedOptions_) => {
               }
               const isRoute2 = relativePathFromTypedRouter.endsWith(".tsx");
               if (isRoute2) {
-                set(
-                  routesObject,
-                  [...routePath.split("/").filter(Boolean).map(useReplacements), "route"],
-                  routePath || "/"
-                );
+                if (routePath === "/" || !routePath.endsWith("/")) {
+                  set(
+                    routesObject,
+                    [...routePath.split("/").filter(Boolean).map(useReplacements), "route"],
+                    routePath || "/"
+                  );
+                }
                 routesDefinitions.push({
                   path: routePath,
                   component: `$$$lazy(() => import('${relativePathFromTypedRouter.replace(new RegExp(`\\${ext}$`), "")}'))$$$`,
                   info: {
-                    id: relativePath.replace(new RegExp(`\\${ext}$`), "")
+                    id: "/" + relativePath.replace(new RegExp(`\\${ext}$`), "")
                   }
                 });
+                console.log(routesDefinitions.at(-1)?.info?.id);
                 if (file.exports.includes("searchParams") && !resolvedOptions.searchParamsSchemas[routePath]) {
                   const asName = `searchParams${searchParamsImportsArray.length}`;
                   searchParamsImportsArray.push(
@@ -201,10 +205,11 @@ const generateTypedRoutes = async (resolvedOptions_) => {
     const SearchParamsRoutes = Object.keys(resolvedOptions.searchParamsSchemas).map((k) => `'${k}'`).join(" | ");
     const { StaticTypedRoutes, DynamicTypedRoutes, DynamicTypedRoutesParams } = routesDefinitions.reduce(
       (acc, route) => {
-        if (!route.path) return acc;
+        if (!route.path || route.path !== "/" && route.path.endsWith("/")) {
+          return acc;
+        }
         const StaticOrDynamic = route.path.includes(":") || route.path.includes("*") ? "DynamicTypedRoutes" : "StaticTypedRoutes";
-        acc[StaticOrDynamic] = acc[StaticOrDynamic] ? acc[StaticOrDynamic] + " | " : acc[StaticOrDynamic];
-        acc[StaticOrDynamic] += `'${route.path}'`;
+        acc[StaticOrDynamic] = acc[StaticOrDynamic].split(" | ").concat(`'${route.path}'`).join(" | ");
         if (StaticOrDynamic === "DynamicTypedRoutes") {
           const routeParams = acc.DynamicTypedRoutesParams[route.path] || [];
           const params = route.path.match(/(:|\*)([^/]+)/g) || [];

@@ -136,6 +136,8 @@ function defineRoutes(fileRoutes: RouteDefinition[]) {
       return routes
     }
 
+    route.path = route.path.replace(new RegExp(`^${parentRoute.path}`), '')
+
     processRoute(
       (parentRoute.children || (parentRoute.children = [])) as RouteDefinition[],
       route,
@@ -290,20 +292,24 @@ const generateTypedRoutes = async (resolvedOptions_: Required<TypedRoutesOptions
               const isRoute = relativePathFromTypedRouter.endsWith('.tsx')
 
               if (isRoute) {
-                set(
-                  routesObject,
-                  [...routePath.split('/').filter(Boolean).map(useReplacements), 'route'],
-                  routePath || '/',
-                )
+                if (routePath === '/' || !routePath.endsWith('/')) {
+                  set(
+                    routesObject,
+                    [...routePath.split('/').filter(Boolean).map(useReplacements), 'route'],
+                    routePath || '/',
+                  )
+                }
 
                 routesDefinitions.push({
                   path: routePath,
                   component:
                     `$$$lazy(() => import('${relativePathFromTypedRouter.replace(new RegExp(`\\${ext}$`), '')}'))$$$` as any,
                   info: {
-                    id: relativePath.replace(new RegExp(`\\${ext}$`), ''),
+                    id: '/' + relativePath.replace(new RegExp(`\\${ext}$`), ''),
                   },
                 })
+
+                console.log(routesDefinitions.at(-1)?.info?.id)
 
                 if (
                   file.exports.includes('searchParams') &&
@@ -382,7 +388,9 @@ const generateTypedRoutes = async (resolvedOptions_: Required<TypedRoutesOptions
     const { StaticTypedRoutes, DynamicTypedRoutes, DynamicTypedRoutesParams } =
       routesDefinitions.reduce(
         (acc, route) => {
-          if (!route.path) return acc
+          if (!route.path || (route.path !== '/' && route.path.endsWith('/'))) {
+            return acc
+          }
 
           const StaticOrDynamic =
             route.path.includes(':') || route.path.includes('*')
@@ -390,10 +398,9 @@ const generateTypedRoutes = async (resolvedOptions_: Required<TypedRoutesOptions
               : 'StaticTypedRoutes'
 
           acc[StaticOrDynamic] = acc[StaticOrDynamic]
-            ? acc[StaticOrDynamic] + ' | '
-            : acc[StaticOrDynamic]
-
-          acc[StaticOrDynamic] += `'${route.path}'`
+            .split(' | ')
+            .concat(`'${route.path}'`)
+            .join(' | ')
 
           if (StaticOrDynamic === 'DynamicTypedRoutes') {
             const routeParams = acc.DynamicTypedRoutesParams[route.path] || []
