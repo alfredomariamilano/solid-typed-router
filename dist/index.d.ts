@@ -59,10 +59,10 @@ type TypedRoutesOptions = {
  *
  * @example
  * ```typescript
- * import { solidTypedRoutesPlugin } from './vite-plugin';
+ * import { solidTypedRouterPlugin } from './vite-plugin';
  *
  * export default {
- *   plugins: [solidTypedRoutesPlugin({ /* options *\/ })],
+ *   plugins: [solidTypedRouterPlugin({ /* options *\/ })],
  * };
  * ```
  *
@@ -71,8 +71,8 @@ type TypedRoutesOptions = {
  * whenever there are changes in the route files.
  *
  * @function
- * @name solidTypedRoutesPlugin
+ * @name solidTypedRouterPlugin
  */
-declare const solidTypedRoutesPlugin: (options?: Omit<TypedRoutesOptions, "searchParamsSchemas">) => any;
+declare const solidTypedRouterPlugin: (options?: Omit<TypedRoutesOptions, "searchParamsSchemas">) => any;
 
-export { solidTypedRoutesPlugin };
+export { solidTypedRouterPlugin };

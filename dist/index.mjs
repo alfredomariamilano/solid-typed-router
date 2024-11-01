@@ -283,7 +283,7 @@ const generateTypedRoutes = async (resolvedOptions_) => {
   isRunning = false;
 };
 const pluginFilesDir = path.resolve(dirname, "..");
-const solidTypedRoutesPlugin = (options = DEFAULTS) => {
+const solidTypedRouterPlugin = (options = DEFAULTS) => {
   const pluginDev = !!process.env.PLUGIN_DEV;
   pluginDev && logger.error("Development mode", { timestamp: true });
   const resolvedOptions = resolveOptions(options);
@@ -338,4 +338,4 @@ const solidTypedRoutesPlugin = (options = DEFAULTS) => {
   };
 };
 
-export { solidTypedRoutesPlugin };
+export { solidTypedRouterPlugin };

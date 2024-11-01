@@ -1,1 +1,1 @@
-export { solidTypedRoutesPlugin } from './vite-plugin'
+export { solidTypedRouterPlugin } from './vite-plugin'
