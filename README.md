@@ -81,3 +81,7 @@ export const route = {
   } as RouteDefinition
 }
 ```
+
+## Recommendations
+
+I recommend users to add `**/*.gen.ts` (or the specific paths you use for the generated files) to their `.gitignore`.
