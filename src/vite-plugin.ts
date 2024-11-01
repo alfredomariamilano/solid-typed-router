@@ -60,9 +60,9 @@ type TypedRoutesOptions = {
   routesPath?: string
   /**
    * The path to the output file. If it's not an absolute path, it will be resolved relative to options.root or process.cwd().
-   * @default 'src/typedRoutes.gen.ts'
+   * @default 'src/typedRouter.gen.ts'
    */
-  typedRoutesPath?: string
+  typedRouterPath?: string
   /**
    * The path to the output file. If it's not an absolute path, it will be resolved relative to options.root or process.cwd().
    * @default 'src/typedSearchParams.gen.ts'
@@ -78,7 +78,7 @@ type TypedRoutesOptions = {
 const DEFAULTS: Partial<TypedRoutesOptions> = {
   root: process.cwd(),
   routesPath: 'src/routes',
-  typedRoutesPath: 'src/typedRoutes.gen.ts',
+  typedRouterPath: 'src/typedRouter.gen.ts',
   typedSearchParamsPath: 'src/typedSearchParams.gen.ts',
   routesDefinitions: [],
   searchParamsSchemas: {},
@@ -112,9 +112,9 @@ const resolveOptions = (options: TypedRoutesOptions): Required<TypedRoutesOption
     ? resolvedOptions.routesPath
     : path.resolve(resolvedOptions.root, resolvedOptions.routesPath)
 
-  resolvedOptions.typedRoutesPath = path.isAbsolute(resolvedOptions.typedRoutesPath)
-    ? resolvedOptions.typedRoutesPath
-    : path.resolve(resolvedOptions.root, resolvedOptions.typedRoutesPath)
+  resolvedOptions.typedRouterPath = path.isAbsolute(resolvedOptions.typedRouterPath)
+    ? resolvedOptions.typedRouterPath
+    : path.resolve(resolvedOptions.root, resolvedOptions.typedRouterPath)
 
   return resolvedOptions
 }
@@ -154,7 +154,7 @@ function defineRoutes(fileRoutes: RouteDefinition[]) {
     }, [] as RouteDefinition[])
 }
 
-const typedRoutesTemplatePath = path.resolve(dirname, '..', 'static', 'typedRoutes.template.ts')
+const typedRoutesTemplatePath = path.resolve(dirname, '..', 'static', 'typedRouter.template.ts')
 
 let typedRoutesTemplate = fs.readFileSync(typedRoutesTemplatePath, 'utf-8')
 
@@ -198,7 +198,7 @@ const generateTypedRoutes = async (resolvedOptions_: Required<TypedRoutesOptions
         }, string)
     }
 
-    const { routesPath, typedRoutesPath } = resolvedOptions
+    const { routesPath, typedRouterPath } = resolvedOptions
 
     let routesDefinitions = resolvedOptions.routesDefinitions
     const hadSearchParamSchemas = Object.keys(resolvedOptions.searchParamsSchemas).length > 0
@@ -208,6 +208,7 @@ const generateTypedRoutes = async (resolvedOptions_: Required<TypedRoutesOptions
     }
 
     const searchParamsImportsArray = [] as string[]
+    const searchParamsExportsArray = [] as string[]
     const routesObject = {} as Record<string, any>
 
     if (routesDefinitions.length <= 0) {
@@ -275,18 +276,18 @@ const generateTypedRoutes = async (resolvedOptions_: Required<TypedRoutesOptions
               //   routePath = ''
               // }
 
-              let relativePathFromOutput = path
+              let relativePathFromTypedRouter = path
                 .relative(
-                  path.dirname(resolvedOptions.typedRoutesPath),
+                  path.dirname(resolvedOptions.typedRouterPath),
                   path.join(resolvedOptions.routesPath, relativePath),
                 )
                 .replace(/\\/g, '/')
 
-              if (!relativePathFromOutput.startsWith('.')) {
-                relativePathFromOutput = './' + relativePathFromOutput
+              if (!relativePathFromTypedRouter.startsWith('.')) {
+                relativePathFromTypedRouter = './' + relativePathFromTypedRouter
               }
 
-              const isRoute = relativePathFromOutput.endsWith('.tsx')
+              const isRoute = relativePathFromTypedRouter.endsWith('.tsx')
 
               if (isRoute) {
                 set(
@@ -298,7 +299,7 @@ const generateTypedRoutes = async (resolvedOptions_: Required<TypedRoutesOptions
                 routesDefinitions.push({
                   path: routePath,
                   component:
-                    `$$$lazy(() => import('${relativePathFromOutput.replace(new RegExp(`\\${ext}$`), '')}'))$$$` as any,
+                    `$$$lazy(() => import('${relativePathFromTypedRouter.replace(new RegExp(`\\${ext}$`), '')}'))$$$` as any,
                   info: {
                     id: relativePath.replace(new RegExp(`\\${ext}$`), ''),
                   },
@@ -311,7 +312,22 @@ const generateTypedRoutes = async (resolvedOptions_: Required<TypedRoutesOptions
                   const asName = `searchParams${searchParamsImportsArray.length}`
 
                   searchParamsImportsArray.push(
-                    `import type { searchParams as ${asName} } from "${relativePathFromOutput}"`,
+                    `import type { searchParams as ${asName} } from "${relativePathFromTypedRouter}"`,
+                  )
+
+                  let relativePathFromTypedSearchParams = path
+                    .relative(
+                      path.dirname(resolvedOptions.typedSearchParamsPath),
+                      path.join(resolvedOptions.routesPath, relativePath),
+                    )
+                    .replace(/\\/g, '/')
+
+                  if (!relativePathFromTypedSearchParams.startsWith('.')) {
+                    relativePathFromTypedSearchParams = './' + relativePathFromTypedSearchParams
+                  }
+
+                  searchParamsExportsArray.push(
+                    `export { searchParams as ${asName} } from "${relativePathFromTypedSearchParams}"`,
                   )
 
                   resolvedOptions.searchParamsSchemas[routePath] = `{} as typeof ${asName}` as any
@@ -350,6 +366,7 @@ const generateTypedRoutes = async (resolvedOptions_: Required<TypedRoutesOptions
       .replace(/\uFFFF/g, '\\"')
 
     const searchParamsImports = searchParamsImportsArray.join('\n')
+    const searchParamsExports = searchParamsExportsArray.join('\n')
 
     let searchParamsSchemas = JSON.stringify(resolvedOptions.searchParamsSchemas, null, 2)
 
@@ -458,18 +475,10 @@ const generateTypedRoutes = async (resolvedOptions_: Required<TypedRoutesOptions
       DynamicTypedRoutesParams,
     })
 
-    fs.writeFileSync(typedRoutesPath, typedRoutesFile)
+    fs.writeFileSync(typedRouterPath, typedRoutesFile)
 
     const typedSearchParamsFile = createOutputFile(typedSearchParamsTemplate, {
-      ...resolvedOptions,
-      routes,
-      routesMap,
-      searchParamsSchemas: searchParamsSchemas.replaceAll('{} as typeof ', ''),
-      searchParamsImports: searchParamsImports.replaceAll('import type ', 'export '),
-      SearchParamsRoutes,
-      StaticTypedRoutes,
-      DynamicTypedRoutes,
-      DynamicTypedRoutesParams,
+      searchParamsExports,
     })
 
     fs.writeFileSync(resolvedOptions.typedSearchParamsPath, typedSearchParamsFile)

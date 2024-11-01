@@ -1,2 +1,2 @@
 // @ts-ignore
-$$$searchParamsImports$$$
+$$$searchParamsExports$$$

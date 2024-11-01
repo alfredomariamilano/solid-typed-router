@@ -15,7 +15,7 @@ const logger = createLogger("info", { prefix: `[${PLUGIN_NAME}]`, allowClearScre
 const DEFAULTS = {
   root: process.cwd(),
   routesPath: "src/routes",
-  typedRoutesPath: "src/typedRoutes.gen.ts",
+  typedRouterPath: "src/typedRouter.gen.ts",
   typedSearchParamsPath: "src/typedSearchParams.gen.ts",
   routesDefinitions: [],
   searchParamsSchemas: {},
@@ -39,7 +39,7 @@ const resolveOptions = (options) => {
   });
   resolvedOptions.root = path.isAbsolute(resolvedOptions.root) ? resolvedOptions.root : path.resolve(process.cwd(), resolvedOptions.root);
   resolvedOptions.routesPath = path.isAbsolute(resolvedOptions.routesPath) ? resolvedOptions.routesPath : path.resolve(resolvedOptions.root, resolvedOptions.routesPath);
-  resolvedOptions.typedRoutesPath = path.isAbsolute(resolvedOptions.typedRoutesPath) ? resolvedOptions.typedRoutesPath : path.resolve(resolvedOptions.root, resolvedOptions.typedRoutesPath);
+  resolvedOptions.typedRouterPath = path.isAbsolute(resolvedOptions.typedRouterPath) ? resolvedOptions.typedRouterPath : path.resolve(resolvedOptions.root, resolvedOptions.typedRouterPath);
   return resolvedOptions;
 };
 function defineRoutes(fileRoutes) {
@@ -63,7 +63,7 @@ function defineRoutes(fileRoutes) {
     return processRoute(prevRoutes, route, route.info.id, route.path);
   }, []);
 }
-const typedRoutesTemplatePath = path.resolve(dirname, "..", "static", "typedRoutes.template.ts");
+const typedRoutesTemplatePath = path.resolve(dirname, "..", "static", "typedRouter.template.ts");
 let typedRoutesTemplate = fs.readFileSync(typedRoutesTemplatePath, "utf-8");
 const typedSearchParamsTemplatePath = path.resolve(
   dirname,
@@ -94,13 +94,14 @@ const generateTypedRoutes = async (resolvedOptions_) => {
         return acc.split(key).join(value);
       }, string);
     };
-    const { routesPath, typedRoutesPath } = resolvedOptions;
+    const { routesPath, typedRouterPath } = resolvedOptions;
     let routesDefinitions = resolvedOptions.routesDefinitions;
     const hadSearchParamSchemas = Object.keys(resolvedOptions.searchParamsSchemas).length > 0;
     if (!fs.existsSync(routesPath) || !fs.lstatSync(routesPath).isDirectory()) {
       throwError(`Routes directory not found at ${routesPath}`);
     }
     const searchParamsImportsArray = [];
+    const searchParamsExportsArray = [];
     const routesObject = {};
     if (routesDefinitions.length <= 0) {
       try {
@@ -133,14 +134,14 @@ const generateTypedRoutes = async (resolvedOptions_) => {
               const ext = path.extname(relativePath);
               let routePath = relativePath.replace(new RegExp(`\\${ext}$`), "").replace(/\[\.{3}/g, "*").replace(/\[([^\]]+)\]/g, ":$1").replace(/\]/g, "").replace(/\\/g, "/").replace(/\/?\(.+\)/g, "").replace(/^index$/g, "/").replace(/index$/g, "");
               routePath = routePath ? routePath.startsWith("/") ? routePath : `/${routePath}` : routePath;
-              let relativePathFromOutput = path.relative(
-                path.dirname(resolvedOptions.typedRoutesPath),
+              let relativePathFromTypedRouter = path.relative(
+                path.dirname(resolvedOptions.typedRouterPath),
                 path.join(resolvedOptions.routesPath, relativePath)
               ).replace(/\\/g, "/");
-              if (!relativePathFromOutput.startsWith(".")) {
-                relativePathFromOutput = "./" + relativePathFromOutput;
+              if (!relativePathFromTypedRouter.startsWith(".")) {
+                relativePathFromTypedRouter = "./" + relativePathFromTypedRouter;
               }
-              const isRoute2 = relativePathFromOutput.endsWith(".tsx");
+              const isRoute2 = relativePathFromTypedRouter.endsWith(".tsx");
               if (isRoute2) {
                 set(
                   routesObject,
@@ -149,7 +150,7 @@ const generateTypedRoutes = async (resolvedOptions_) => {
                 );
                 routesDefinitions.push({
                   path: routePath,
-                  component: `$$$lazy(() => import('${relativePathFromOutput.replace(new RegExp(`\\${ext}$`), "")}'))$$$`,
+                  component: `$$$lazy(() => import('${relativePathFromTypedRouter.replace(new RegExp(`\\${ext}$`), "")}'))$$$`,
                   info: {
                     id: relativePath.replace(new RegExp(`\\${ext}$`), "")
                   }
@@ -157,7 +158,17 @@ const generateTypedRoutes = async (resolvedOptions_) => {
                 if (file.exports.includes("searchParams") && !resolvedOptions.searchParamsSchemas[routePath]) {
                   const asName = `searchParams${searchParamsImportsArray.length}`;
                   searchParamsImportsArray.push(
-                    `import type { searchParams as ${asName} } from "${relativePathFromOutput}"`
+                    `import type { searchParams as ${asName} } from "${relativePathFromTypedRouter}"`
+                  );
+                  let relativePathFromTypedSearchParams = path.relative(
+                    path.dirname(resolvedOptions.typedSearchParamsPath),
+                    path.join(resolvedOptions.routesPath, relativePath)
+                  ).replace(/\\/g, "/");
+                  if (!relativePathFromTypedSearchParams.startsWith(".")) {
+                    relativePathFromTypedSearchParams = "./" + relativePathFromTypedSearchParams;
+                  }
+                  searchParamsExportsArray.push(
+                    `export { searchParams as ${asName} } from "${relativePathFromTypedSearchParams}"`
                   );
                   resolvedOptions.searchParamsSchemas[routePath] = `{} as typeof ${asName}`;
                 }
@@ -181,6 +192,7 @@ const generateTypedRoutes = async (resolvedOptions_) => {
     const routes = JSON.stringify(defineRoutes(routesDefinitions), null, 2).replace(/('|"|`)?\${3}('|"|`)?/g, "").replace(/"([^"]+)":/g, "$1:").replace(/\uFFFF/g, '\\"');
     const routesMap = JSON.stringify(routesObject, null, 2).replace(/"([^"]+)":/g, "$1:").replace(/\uFFFF/g, '\\"');
     const searchParamsImports = searchParamsImportsArray.join("\n");
+    const searchParamsExports = searchParamsExportsArray.join("\n");
     let searchParamsSchemas = JSON.stringify(resolvedOptions.searchParamsSchemas, null, 2);
     searchParamsSchemas = hadSearchParamSchemas ? searchParamsSchemas : (
       // https://stackoverflow.com/a/11233515/10019771
@@ -254,17 +266,9 @@ const generateTypedRoutes = async (resolvedOptions_) => {
       DynamicTypedRoutes,
       DynamicTypedRoutesParams
     });
-    fs.writeFileSync(typedRoutesPath, typedRoutesFile);
+    fs.writeFileSync(typedRouterPath, typedRoutesFile);
     const typedSearchParamsFile = createOutputFile(typedSearchParamsTemplate, {
-      ...resolvedOptions,
-      routes,
-      routesMap,
-      searchParamsSchemas: searchParamsSchemas.replaceAll("{} as typeof ", ""),
-      searchParamsImports: searchParamsImports.replaceAll("import type ", "export "),
-      SearchParamsRoutes,
-      StaticTypedRoutes,
-      DynamicTypedRoutes,
-      DynamicTypedRoutesParams
+      searchParamsExports
     });
     fs.writeFileSync(resolvedOptions.typedSearchParamsPath, typedSearchParamsFile);
     logger.info(`Typed routes generated in ${Math.round(performance.now() - start)}ms`, {

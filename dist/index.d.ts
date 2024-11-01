@@ -37,9 +37,9 @@ type TypedRoutesOptions = {
     routesPath?: string;
     /**
      * The path to the output file. If it's not an absolute path, it will be resolved relative to options.root or process.cwd().
-     * @default 'src/typedRoutes.gen.ts'
+     * @default 'src/typedRouter.gen.ts'
      */
-    typedRoutesPath?: string;
+    typedRouterPath?: string;
     /**
      * The path to the output file. If it's not an absolute path, it will be resolved relative to options.root or process.cwd().
      * @default 'src/typedSearchParams.gen.ts'
