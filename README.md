@@ -2,6 +2,14 @@
 
 A Vite plugin for generating typed routes for Solid.js applications. This plugin also creates search params validation if you export a `searchParams` object from the route.
 
+## Github repo
+
+If you're not already here, see the Github repo [HERE](https://github.com/alfredomariamilano/solid-typed-router)
+
+## Demo
+
+See a working demo on Stackblitz [HERE](https://stackblitz.com/~/github.com/alfredomariamilano/solid-hack-typed-routes?file=README.md)
+
 ## Installation
 
 This plugin is still in active development and it is not published on npm or other registries. To try it out, install via
@@ -15,12 +23,12 @@ Add the plugin to your Vite configuration:
 ```typescript
 import { defineConfig } from 'vite';
 import solid from 'vite-plugin-solid';
-import { solidTypedRoutesPlugin } from 'solid-typed-routes-plugin';
+import { solidTypedRouterPlugin } from 'solid-typed-routes-plugin';
 
 export default defineConfig({
   plugins: [
     solid(),
-    solidTypedRoutesPlugin({
+    solidTypedRouterPlugin({
       // options
     }),
   ],
@@ -35,7 +43,7 @@ The plugin accepts the following options:
 - searchParamsSchemas (default: `{}`): Definition of the search params schemas.
 - root (default: `process.cwd()`): The root directory of the project.
 - routesPath (default: `'src/routes'`): The path to the routes directory.
-- typedRoutesPath (default: `'src/typedRoutes.gen.ts'`): The path to the typed routes file.
+- typedRouterPath (default: `'src/typedRouter.gen.ts'`): The path to the typed routes file.
 - typedSearchParamsPath (default: `'src/typedSearchParams.gen.ts'`): The path to the typed search params file.
 - replacements (default: `{ ':': '$', '*': '$$', '.': '_dot_', '-': '_dash_', '+': '_plus_' }`): Custom replacements for route parameters and route names.
 
@@ -43,7 +51,7 @@ The plugin accepts the following options:
 
 If you export a searchParams object from a route, the plugin will automatically create search params validation for that route. You need `valibot` >= 1 installed. Do so by running `npm i valibot@^1.0.0-beta.3`.
 ```typescript
-import { createSearchParams } from "@/generated/typedRoutes.gen"
+import { createSearchParams } from "@/generated/typedRouter.gen"
 import { object, optional, pipe, string, transform } from "valibot"
 
 const searchParamsSchema = optional(
