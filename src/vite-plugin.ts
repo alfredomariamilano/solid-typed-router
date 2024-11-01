@@ -136,6 +136,7 @@ function defineRoutes(fileRoutes: RouteDefinition[]) {
       return routes
     }
 
+    route!.info!.fullPath = route.path
     route.path = route.path.replace(new RegExp(`^${parentRoute.path}`), '')
 
     processRoute(
@@ -360,31 +361,6 @@ const generateTypedRoutes = async (resolvedOptions_: Required<TypedRoutesOptions
       routesDefinitions.push(...newRoutesDefinitions)
     }
 
-    const routes = JSON.stringify(defineRoutes(routesDefinitions), null, 2)
-      // replace the recognizable string with the actual lazy import
-      .replace(/('|"|`)?\${3}('|"|`)?/g, '')
-      // https://stackoverflow.com/a/11233515/10019771
-      .replace(/"([^"]+)":/g, '$1:')
-      .replace(/\uFFFF/g, '\\"')
-
-    const routesMap = JSON.stringify(routesObject, null, 2) // https://stackoverflow.com/a/11233515/10019771
-      .replace(/"([^"]+)":/g, '$1:')
-      .replace(/\uFFFF/g, '\\"')
-
-    const searchParamsImports = searchParamsImportsArray.join('\n')
-    const searchParamsExports = searchParamsExportsArray.join('\n')
-
-    let searchParamsSchemas = JSON.stringify(resolvedOptions.searchParamsSchemas, null, 2)
-
-    searchParamsSchemas = hadSearchParamSchemas
-      ? searchParamsSchemas
-      : // https://stackoverflow.com/a/11233515/10019771
-        searchParamsSchemas.replace(/: "([^"]+)"/g, ': $1')
-
-    const SearchParamsRoutes = Object.keys(resolvedOptions.searchParamsSchemas)
-      .map(k => `'${k}'`)
-      .join(' | ')
-
     const { StaticTypedRoutes, DynamicTypedRoutes, DynamicTypedRoutesParams } =
       routesDefinitions.reduce(
         (acc, route) => {
@@ -432,6 +408,31 @@ const generateTypedRoutes = async (resolvedOptions_: Required<TypedRoutesOptions
           DynamicTypedRoutesParams: {},
         },
       )
+
+    const routes = JSON.stringify(defineRoutes(routesDefinitions), null, 2)
+      // replace the recognizable string with the actual lazy import
+      .replace(/('|"|`)?\${3}('|"|`)?/g, '')
+      // https://stackoverflow.com/a/11233515/10019771
+      .replace(/"([^"]+)":/g, '$1:')
+      .replace(/\uFFFF/g, '\\"')
+
+    const routesMap = JSON.stringify(routesObject, null, 2) // https://stackoverflow.com/a/11233515/10019771
+      .replace(/"([^"]+)":/g, '$1:')
+      .replace(/\uFFFF/g, '\\"')
+
+    const searchParamsImports = searchParamsImportsArray.join('\n')
+    const searchParamsExports = searchParamsExportsArray.join('\n')
+
+    let searchParamsSchemas = JSON.stringify(resolvedOptions.searchParamsSchemas, null, 2)
+
+    searchParamsSchemas = hadSearchParamSchemas
+      ? searchParamsSchemas
+      : // https://stackoverflow.com/a/11233515/10019771
+        searchParamsSchemas.replace(/: "([^"]+)"/g, ': $1')
+
+    const SearchParamsRoutes = Object.keys(resolvedOptions.searchParamsSchemas)
+      .map(k => `'${k}'`)
+      .join(' | ')
 
     if (process.env.PLUGIN_DEV) {
       typedRoutesTemplate = fs.readFileSync(typedRoutesTemplatePath, 'utf-8')
