@@ -25,10 +25,6 @@
     "./package.json": "./package.json"
   },
   "license": "MIT",
-  "dependencies": {
-    "copy-anything": "^4.0.2",
-    "lodash-es": "^4.17.21"
-  },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
     "@types/node": "^22.8.1",
@@ -37,8 +33,9 @@
   },
   "peerDependencies": {
     "@solidjs/router": ">= 0.14",
-    "rollup": "4",
-    "rollup-plugin-esbuild": "6",
+    "lodash-es": ">= 4",
+    "rollup": ">= 4",
+    "rollup-plugin-esbuild": ">= 6",
     "solid-js": ">= 1.9 < 2",
     "valibot": "^1.0.0-beta.3"
   }
