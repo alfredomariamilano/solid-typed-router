@@ -32,11 +32,11 @@
     "vite": "^5.4.10"
   },
   "peerDependencies": {
-    "@solidjs/router": ">= 0.14",
-    "lodash-es": ">= 4",
-    "rollup": ">= 4",
-    "rollup-plugin-esbuild": ">= 6",
-    "solid-js": ">= 1.9 < 2",
+    "@solidjs/router": ">= 0.14.0 < 1",
+    "lodash-es": ">= 4.0.0",
+    "rollup": ">= 4.0.0",
+    "rollup-plugin-esbuild": ">= 6.0.0",
+    "solid-js": ">= 1.9.0 < 2",
     "valibot": "^1.0.0-beta.3"
   }
 }

@@ -7,7 +7,7 @@ import type SetType from 'lodash-es/set'
 import { rollup } from 'rollup'
 import type EsbuildPluginType from 'rollup-plugin-esbuild'
 import type { BaseIssue, BaseSchema } from 'valibot'
-import type { Plugin } from 'vite'
+import type { Plugin, UserConfig } from 'vite'
 import { createLogger } from 'vite'
 
 const dirname = import.meta.dirname || path.dirname(url.fileURLToPath(import.meta.url))
@@ -505,6 +505,44 @@ const generateTypedRoutes = async (resolvedOptions_: Required<TypedRoutesOptions
 
 const pluginFilesDir = path.resolve(dirname, '..')
 
+// force compatibility with vinxi/solid-start
+const vinxiCompatConfig = (config: UserConfig) => {
+  try {
+    const configAsAny = config as any
+
+    if (configAsAny?.router?.internals?.routes) {
+      const router = configAsAny?.router?.internals?.routes
+
+      const getRoutes = router?.getRoutes?.bind(router)
+
+      router.getRoutes = async () => {
+        const routes = await getRoutes()
+
+        return routes.map(route => {
+          if (route?.$component?.pick && !route?.$component?.pick.includes('searchParams')) {
+            route.$component.pick.push('searchParams')
+          }
+
+          if (route?.$$route?.pick && !route?.$$route?.pick.includes('searchParams')) {
+            route.$$route.pick.push('searchParams')
+          }
+
+          return route
+        })
+      }
+    }
+  } catch (error) {
+    logger.warn(error)
+  }
+
+  // set a noop alias to run before other vite plugins, including vinxi
+  config.resolve ??= {}
+  config.resolve.alias ??= {}
+  config.resolve.alias[PLUGIN_NAME] = PLUGIN_NAME
+
+  return config
+}
+
 /**
  * A Vite plugin for generating typed routes for Solid applications.
  *
@@ -540,43 +578,18 @@ export const solidTypedRouterPlugin = (
   generateTypedRoutes(resolvedOptions)
 
   return {
-    name: 'solid-typed-routes',
-    // enforce: 'post',
+    name: PLUGIN_NAME,
+    enforce: 'pre',
     buildStart() {
       pluginDev && this.addWatchFile(pluginFilesDir)
 
       generateTypedRoutes(resolvedOptions)
     },
+    config(config) {
+      return vinxiCompatConfig(config)
+    },
     configResolved(config) {
-      try {
-        const configAsAny = config as any
-        // force compatibility with vinxi/solid-start
-        if (configAsAny?.app?.config?.name === 'vinxi' && configAsAny?.router?.internals?.routes) {
-          const router = configAsAny?.router?.internals?.routes
-
-          const getRoutes = router?.getRoutes?.bind(router)
-
-          router.getRoutes = async () => {
-            const routes = await getRoutes()
-
-            return routes.map(route => {
-              if (route?.$component?.pick) {
-                route.$component.pick.push('searchParams')
-              }
-
-              if (route?.$$route?.pick) {
-                route.$$route.pick.push('searchParams')
-              }
-
-              return route
-            })
-          }
-        }
-      } catch (error) {
-        logger.warn(error)
-      }
-
-      // return config
+      vinxiCompatConfig(config as any)
     },
     watchChange(changePath) {
       if (pluginDev) {

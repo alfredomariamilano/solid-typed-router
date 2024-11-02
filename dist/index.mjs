@@ -290,40 +290,50 @@ const generateTypedRoutes = async (resolvedOptions_) => {
   isRunning = false;
 };
 const pluginFilesDir = path.resolve(dirname, "..");
+const vinxiCompatConfig = (config) => {
+  try {
+    const configAsAny = config;
+    if (configAsAny?.router?.internals?.routes) {
+      const router = configAsAny?.router?.internals?.routes;
+      const getRoutes = router?.getRoutes?.bind(router);
+      router.getRoutes = async () => {
+        const routes = await getRoutes();
+        return routes.map((route) => {
+          if (route?.$component?.pick && !route?.$component?.pick.includes("searchParams")) {
+            route.$component.pick.push("searchParams");
+          }
+          if (route?.$$route?.pick && !route?.$$route?.pick.includes("searchParams")) {
+            route.$$route.pick.push("searchParams");
+          }
+          return route;
+        });
+      };
+    }
+  } catch (error) {
+    logger.warn(error);
+  }
+  config.resolve ??= {};
+  config.resolve.alias ??= {};
+  config.resolve.alias[PLUGIN_NAME] = PLUGIN_NAME;
+  return config;
+};
 const solidTypedRouterPlugin = (options = DEFAULTS) => {
   const pluginDev = !!process.env.PLUGIN_DEV;
   pluginDev && logger.error("Development mode", { timestamp: true });
   const resolvedOptions = resolveOptions(options);
   generateTypedRoutes(resolvedOptions);
   return {
-    name: "solid-typed-routes",
-    // enforce: 'post',
+    name: PLUGIN_NAME,
+    enforce: "pre",
     buildStart() {
       pluginDev && this.addWatchFile(pluginFilesDir);
       generateTypedRoutes(resolvedOptions);
     },
+    config(config) {
+      return vinxiCompatConfig(config);
+    },
     configResolved(config) {
-      try {
-        const configAsAny = config;
-        if (configAsAny?.app?.config?.name === "vinxi" && configAsAny?.router?.internals?.routes) {
-          const router = configAsAny?.router?.internals?.routes;
-          const getRoutes = router?.getRoutes?.bind(router);
-          router.getRoutes = async () => {
-            const routes = await getRoutes();
-            return routes.map((route) => {
-              if (route?.$component?.pick) {
-                route.$component.pick.push("searchParams");
-              }
-              if (route?.$$route?.pick) {
-                route.$$route.pick.push("searchParams");
-              }
-              return route;
-            });
-          };
-        }
-      } catch (error) {
-        logger.warn(error);
-      }
+      vinxiCompatConfig(config);
     },
     watchChange(changePath) {
       if (pluginDev) {
