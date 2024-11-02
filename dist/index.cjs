@@ -164,7 +164,6 @@ const generateTypedRoutes = async (resolvedOptions_) => {
                     id: "/" + relativePath.replace(new RegExp(`\\${ext}$`), "")
                   }
                 });
-                console.log(routesDefinitions.at(-1)?.info?.id);
                 if (file.exports.includes("searchParams") && !resolvedOptions.searchParamsSchemas[routePath]) {
                   const asName = `searchParams${searchParamsImportsArray.length}`;
                   searchParamsImportsArray.push(
