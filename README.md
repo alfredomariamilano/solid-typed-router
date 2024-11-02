@@ -8,7 +8,7 @@ If you're not already here, see the Github repo [HERE](https://github.com/alfred
 
 ## Demo
 
-See a working demo on Stackblitz [HERE](https://stackblitz.com/~/github.com/alfredomariamilano/solid-hack-typed-routes?file=README.md)
+See a working demo on Stackblitz [HERE](https://stackblitz.com/github/alfredomariamilano/solid-hack-typed-routes?file=README.md)
 
 ## Installation
 
