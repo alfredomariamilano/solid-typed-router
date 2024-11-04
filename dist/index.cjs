@@ -23,11 +23,11 @@ const DEFAULTS = {
   routesDefinitions: [],
   searchParamsSchemas: {},
   replacements: {
-    ":": "$",
-    "*": "$$",
-    ".": "_dot_",
-    "-": "_dash_",
-    "+": "_plus_"
+    ":": "",
+    "*": "",
+    ".": "",
+    "-": "",
+    "+": ""
   }
 };
 const resolveOptions = (options) => {
@@ -95,11 +95,7 @@ const generateTypedRoutes = async (resolvedOptions_) => {
       throw new Error(message);
     };
     const useReplacements = (string) => {
-      return Object.entries(resolvedOptions.replacements).sort((a, b) => {
-        return b[1].length - a[1].length;
-      }).reduce((acc, [key, value]) => {
-        return acc.split(key).join(value);
-      }, string);
+      return string.split(/\*|:/g).join("");
     };
     const { routesPath, typedRouterPath } = resolvedOptions;
     let routesDefinitions = resolvedOptions.routesDefinitions;
@@ -139,8 +135,15 @@ const generateTypedRoutes = async (resolvedOptions_) => {
             const isRoute = !relativePath.startsWith("..");
             if (isRoute) {
               const ext = path.extname(relativePath);
-              let routePath = relativePath.replace(new RegExp(`\\${ext}$`), "").replace(/\[\.{3}/g, "*").replace(/\[([^\]]+)\]/g, ":$1").replace(/\]/g, "").replace(/\\/g, "/").replace(/\/?\(.+\)/g, "").replace(/^index$/g, "/").replace(/index$/g, "");
-              routePath = routePath ? routePath.startsWith("/") ? routePath : `/${routePath}` : routePath;
+              let routePath = relativePath.replace(new RegExp(`\\${ext}$`), "").replace(/index$/, "").replace(/\[([^\/]+)\]/g, (_, m) => {
+                if (m.length > 3 && m.startsWith("...")) {
+                  return `*${m.slice(3)}`;
+                }
+                if (m.length > 2 && m.startsWith("[") && m.endsWith("]")) {
+                  return `:${m.slice(1, -1)}?`;
+                }
+                return `:${m}`;
+              }).replace(/\/\([^)/]+\)/g, "").replace(/\([^)/]+\)/g, "");
               let relativePathFromTypedRouter = path.relative(
                 path.dirname(resolvedOptions.typedRouterPath),
                 path.join(resolvedOptions.routesPath, relativePath)
@@ -148,20 +151,23 @@ const generateTypedRoutes = async (resolvedOptions_) => {
               if (!relativePathFromTypedRouter.startsWith(".")) {
                 relativePathFromTypedRouter = "./" + relativePathFromTypedRouter;
               }
-              const isRoute2 = relativePathFromTypedRouter.endsWith(".tsx");
-              if (isRoute2) {
+              const isValidRoute = relativePathFromTypedRouter.match(/\.ts(x)?$/g);
+              if (isValidRoute) {
+                const routeParts = routePath.split("/").filter(Boolean);
+                routePath = routeParts.join("/");
+                routePath = routePath.startsWith("/") ? routePath : `/${routePath}`;
+                console.log({
+                  routePath
+                });
                 if (routePath === "/" || !routePath.endsWith("/")) {
-                  set(
-                    routesObject,
-                    [...routePath.split("/").filter(Boolean).map(useReplacements), "route"],
-                    routePath || "/"
-                  );
+                  set(routesObject, [...routeParts.map(useReplacements), "route"], routePath || "/");
                 }
                 routesDefinitions.push({
                   path: routePath,
                   component: `$$$lazy(() => import('${relativePathFromTypedRouter.replace(new RegExp(`\\${ext}$`), "")}'))$$$`,
                   info: {
-                    id: "/" + relativePath.replace(new RegExp(`\\${ext}$`), "")
+                    id: "/" + relativePath.replace(new RegExp(`\\${ext}$`), ""),
+                    filesystem: true
                   }
                 });
                 if (file.exports.includes("searchParams") && !resolvedOptions.searchParamsSchemas[routePath]) {
@@ -228,8 +234,8 @@ const generateTypedRoutes = async (resolvedOptions_) => {
         DynamicTypedRoutesParams: {}
       }
     );
-    const routes = JSON.stringify(defineRoutes(structuredClone(routesDefinitions)), null, 2).replace(/('|"|`)?\${3}('|"|`)?/g, "").replace(/"([^"]+)":/g, "$1:").replace(/\uFFFF/g, '\\"');
-    const routesMap = JSON.stringify(routesObject, null, 2).replace(/"([^"]+)":/g, "$1:").replace(/\uFFFF/g, '\\"');
+    const routes = JSON.stringify(defineRoutes(structuredClone(routesDefinitions)), null, 2).replace(/('|"|`)?\${3}('|"|`)?/g, "");
+    const routesMap = JSON.stringify(routesObject, null, 2);
     const searchParamsImports = searchParamsImportsArray.join("\n");
     const searchParamsExports = searchParamsExportsArray.join("\n");
     let searchParamsSchemas = JSON.stringify(resolvedOptions.searchParamsSchemas, null, 2);

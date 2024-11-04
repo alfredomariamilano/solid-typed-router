@@ -22,21 +22,12 @@ export type DynamicTypedRoutesParams = $$$DynamicTypedRoutesParams$$$
 
 export type TypedRoutes = StaticTypedRoutes | DynamicTypedRoutes
 
-// export type TypedLinkProps = Omit<AnchorProps> & {}
-
-// export const TypedLink = (props) => {
-//   return A(props)
-// }
-
-type DynamicTypedRouteParams<T extends DynamicTypedRoutes> = {
-  params: {
-    [K in DynamicTypedRoutesParams[T][number]]: string
-    // [K in DynamicTypedRoutesParams[T][number]]: string | number
-  }
+export type DynamicTypedRouteParams<T extends DynamicTypedRoutes> = {
+  [K in DynamicTypedRoutesParams[T][number]]: string
 }
 
 export type TypedNavigateOptions<T extends TypedRoutes> = Partial<NavigateOptions> &
-  (T extends DynamicTypedRoutes ? DynamicTypedRouteParams<T> : {}) &
+  (T extends DynamicTypedRoutes ? { params: DynamicTypedRouteParams<T> } : {}) &
   (T extends SearchParamsRoutes ? { search?: InferInput<(typeof searchParamsSchemas)[T]> } : {})
 
 interface TypedNavigator {
@@ -55,13 +46,15 @@ export const useReplacements = (string: string, flip?: boolean) => {
       return b[0].length - a[0].length
     })
     .reduce((acc, [key, value]) => {
+      if (!key) return acc
+
       return acc.split(key).join(value)
     }, string)
 }
 
 export const getTypedRoute = <T extends TypedRoutes>(
   href: T,
-  params: T extends DynamicTypedRoutes ? Pick<DynamicTypedRouteParams<T>, 'params'> : never,
+  params: T extends DynamicTypedRoutes ? DynamicTypedRouteParams<T> : never,
   search?: T extends SearchParamsRoutes
     ? InferInput<(typeof searchParamsSchemas)[T]>
     : SearchParamsGeneric,
@@ -72,7 +65,11 @@ export const getTypedRoute = <T extends TypedRoutes>(
     Object.keys(params).forEach(key => {
       const dynamicParamKey = useReplacements(key, true)
 
-      parsedLink = parsedLink.split(dynamicParamKey).join(params[key]) as T
+      if (dynamicParamKey === key) {
+        parsedLink = parsedLink.split(new RegExp(`\\*|:${key}`)).join(params[key]) as T
+      } else {
+        parsedLink = parsedLink.split(dynamicParamKey).join(params[key]) as T
+      }
     })
   }
 
@@ -128,7 +125,7 @@ export const useTypedMatch = <T extends TypedRoutes>(
 }
 
 export const useTypedParams = <const T extends DynamicTypedRoutes>(route: T) => {
-  const params = useParams<DynamicTypedRouteParams<T>['params']>()
+  const params = useParams<DynamicTypedRouteParams<T>>()
 
   const typedParams = createMemo(() => {
     const routeParts = route.split('/').filter(Boolean)
@@ -145,7 +142,7 @@ export const useTypedParams = <const T extends DynamicTypedRoutes>(route: T) => 
 
         return acc
       },
-      {} as DynamicTypedRouteParams<T>['params'],
+      {} as DynamicTypedRouteParams<T>,
     )
   })
 
@@ -155,7 +152,7 @@ export const useTypedParams = <const T extends DynamicTypedRoutes>(route: T) => 
 export type TypedLinkProps<T extends TypedRoutes> = Omit<ComponentProps<typeof A>, 'href'> & {
   search?: SearchParamsGeneric
   href: T
-} & (T extends DynamicTypedRoutes ? DynamicTypedRouteParams<T> : { params?: never }) &
+} & (T extends DynamicTypedRoutes ? { params: DynamicTypedRouteParams<T> } : { params?: never }) &
   (T extends SearchParamsRoutes ? { search?: InferInput<(typeof searchParamsSchemas)[T]> } : {})
 
 export function TypedLink<T extends TypedRoutes>(props: TypedLinkProps<T>): JSX.Element {
@@ -173,10 +170,6 @@ type SearchParamsGeneric = Record<any, any>
 type SearchParamsRoutes = $$$SearchParamsRoutes$$$
 // @ts-ignore
 export const searchParamsSchemas = $$$searchParamsSchemas$$$
-// as const satisfies Record<
-//   string,
-//   BaseSchema<unknown, unknown, BaseIssue<unknown>>
-// >
 
 export function createSearchParams<
   const T extends BaseSchema<unknown, unknown, BaseIssue<unknown>>,
@@ -191,7 +184,17 @@ export function parseSearchParams<const T extends SearchParamsRoutes>(
   params: Partial<SearchParams<T>>,
 ) {
   try {
-    return safeParse<SearchParamsSchema<T>>(searchParamsSchemas[schema], params)
+    const decodedParams = Object.entries(params).reduce((acc, [key, value]) => {
+      try {
+        acc[key] = JSON.parse(value as any)
+      } catch {
+        acc[key] = value
+      }
+
+      return acc
+    }, {})
+
+    return safeParse<SearchParamsSchema<T>>(searchParamsSchemas[schema], decodedParams)
       .output as SearchParams<T>
   } catch (error) {
     if (searchParamsSchemas[schema]) {

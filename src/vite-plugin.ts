@@ -83,11 +83,11 @@ const DEFAULTS: Partial<TypedRoutesOptions> = {
   routesDefinitions: [],
   searchParamsSchemas: {},
   replacements: {
-    ':': '$',
-    '*': '$$',
-    '.': '_dot_',
-    '-': '_dash_',
-    '+': '_plus_',
+    ':': '',
+    '*': '',
+    '.': '',
+    '-': '',
+    '+': '',
   },
 } as const
 
@@ -192,13 +192,14 @@ const generateTypedRoutes = async (resolvedOptions_: Required<TypedRoutesOptions
     }
 
     const useReplacements = (string: string) => {
-      return Object.entries(resolvedOptions.replacements)
-        .sort((a, b) => {
-          return b[1].length - a[1].length
-        })
-        .reduce((acc, [key, value]) => {
-          return acc.split(key).join(value)
-        }, string)
+      // return Object.entries(resolvedOptions.replacements)
+      //   .sort((a, b) => {
+      //     return b[1].length - a[1].length
+      //   })
+      //   .reduce((acc, [key, value]) => {
+      //     return acc.split(key).join(value)
+      //   }, string)
+      return string.split(/\*|:/g).join('')
     }
 
     const { routesPath, typedRouterPath } = resolvedOptions
@@ -261,23 +262,18 @@ const generateTypedRoutes = async (resolvedOptions_: Required<TypedRoutesOptions
 
               let routePath = relativePath
                 .replace(new RegExp(`\\${ext}$`), '')
-                .replace(/\[\.{3}/g, '*')
-                .replace(/\[([^\]]+)\]/g, ':$1')
-                .replace(/\]/g, '')
-                .replace(/\\/g, '/')
-                .replace(/\/?\(.+\)/g, '')
-                .replace(/^index$/g, '/')
-                .replace(/index$/g, '')
-
-              routePath = routePath
-                ? routePath.startsWith('/')
-                  ? routePath
-                  : `/${routePath}`
-                : routePath
-
-              // if (basename.match(/\(.+\)\/?/g)) {
-              //   routePath = ''
-              // }
+                .replace(/index$/, '')
+                .replace(/\[([^\/]+)\]/g, (_, m) => {
+                  if (m.length > 3 && m.startsWith('...')) {
+                    return `*${m.slice(3)}`
+                  }
+                  if (m.length > 2 && m.startsWith('[') && m.endsWith(']')) {
+                    return `:${m.slice(1, -1)}?`
+                  }
+                  return `:${m}`
+                })
+                .replace(/\/\([^)/]+\)/g, '')
+                .replace(/\([^)/]+\)/g, '')
 
               let relativePathFromTypedRouter = path
                 .relative(
@@ -290,15 +286,21 @@ const generateTypedRoutes = async (resolvedOptions_: Required<TypedRoutesOptions
                 relativePathFromTypedRouter = './' + relativePathFromTypedRouter
               }
 
-              const isRoute = relativePathFromTypedRouter.endsWith('.tsx')
+              const isValidRoute = relativePathFromTypedRouter.match(/\.ts(x)?$/g)
 
-              if (isRoute) {
+              if (isValidRoute) {
+                const routeParts = routePath.split('/').filter(Boolean)
+
+                routePath = routeParts.join('/')
+
+                routePath = routePath.startsWith('/') ? routePath : `/${routePath}`
+
+                console.log({
+                  routePath,
+                })
+
                 if (routePath === '/' || !routePath.endsWith('/')) {
-                  set(
-                    routesObject,
-                    [...routePath.split('/').filter(Boolean).map(useReplacements), 'route'],
-                    routePath || '/',
-                  )
+                  set(routesObject, [...routeParts.map(useReplacements), 'route'], routePath || '/')
                 }
 
                 routesDefinitions.push({
@@ -307,6 +309,7 @@ const generateTypedRoutes = async (resolvedOptions_: Required<TypedRoutesOptions
                     `$$$lazy(() => import('${relativePathFromTypedRouter.replace(new RegExp(`\\${ext}$`), '')}'))$$$` as any,
                   info: {
                     id: '/' + relativePath.replace(new RegExp(`\\${ext}$`), ''),
+                    filesystem: true,
                   },
                 })
 
@@ -410,13 +413,14 @@ const generateTypedRoutes = async (resolvedOptions_: Required<TypedRoutesOptions
     const routes = JSON.stringify(defineRoutes(structuredClone(routesDefinitions)), null, 2)
       // replace the recognizable string with the actual lazy import
       .replace(/('|"|`)?\${3}('|"|`)?/g, '')
-      // https://stackoverflow.com/a/11233515/10019771
-      .replace(/"([^"]+)":/g, '$1:')
-      .replace(/\uFFFF/g, '\\"')
+    // https://stackoverflow.com/a/11233515/10019771
+    // .replace(/"([^"]+)":/g, '$1:')
+    // .replace(/\uFFFF/g, '\\"')
 
-    const routesMap = JSON.stringify(routesObject, null, 2) // https://stackoverflow.com/a/11233515/10019771
-      .replace(/"([^"]+)":/g, '$1:')
-      .replace(/\uFFFF/g, '\\"')
+    const routesMap = JSON.stringify(routesObject, null, 2)
+    // https://stackoverflow.com/a/11233515/10019771
+    // .replace(/"([^"]+)":/g, '$1:')
+    // .replace(/\uFFFF/g, '\\"')
 
     const searchParamsImports = searchParamsImportsArray.join('\n')
     const searchParamsExports = searchParamsExportsArray.join('\n')
