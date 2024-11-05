@@ -1,5 +1,5 @@
 {
-  "name": "solid-typed-router",
+  "name": "vite-plugin-solid-typed-router",
   "version": "0.0.1",
   "description": "A vite plugin to create typed routes for Solid projects, including Solid Start.",
   "type": "module",

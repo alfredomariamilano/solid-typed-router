@@ -1,6 +1,7 @@
 'use strict';
 
 var fs = require('node:fs');
+var node_module = require('node:module');
 var path = require('node:path');
 var process = require('node:process');
 var url = require('node:url');
@@ -9,11 +10,13 @@ var vite = require('vite');
 
 var _documentCurrentScript = typeof document !== 'undefined' ? document.currentScript : null;
 const dirname = undefined || path.dirname(url.fileURLToPath((typeof document === 'undefined' ? require('u' + 'rl').pathToFileURL(__filename).href : (_documentCurrentScript && _documentCurrentScript.tagName.toUpperCase() === 'SCRIPT' && _documentCurrentScript.src || new URL('index.cjs', document.baseURI).href))));
+const require$1 = node_module.createRequire((typeof document === 'undefined' ? require('u' + 'rl').pathToFileURL(__filename).href : (_documentCurrentScript && _documentCurrentScript.tagName.toUpperCase() === 'SCRIPT' && _documentCurrentScript.src || new URL('index.cjs', document.baseURI).href)));
+const packageJSON = require$1("../package.json");
+const PLUGIN_NAME = packageJSON.name;
 const esbuildPluginImport = import('rollup-plugin-esbuild');
 let esbuildPlugin;
 const setImport = import('lodash-es/set.js');
 let set;
-const PLUGIN_NAME = "solid-typed-routes";
 const logger = vite.createLogger("info", { prefix: `[${PLUGIN_NAME}]`, allowClearScreen: true });
 const DEFAULTS = {
   root: process.cwd(),

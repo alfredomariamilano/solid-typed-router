@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import process from 'node:process';
 import url from 'node:url';
@@ -6,11 +7,13 @@ import { rollup } from 'rollup';
 import { createLogger } from 'vite';
 
 const dirname = import.meta.dirname || path.dirname(url.fileURLToPath(import.meta.url));
+const require = createRequire(import.meta.url);
+const packageJSON = require("../package.json");
+const PLUGIN_NAME = packageJSON.name;
 const esbuildPluginImport = import('rollup-plugin-esbuild');
 let esbuildPlugin;
 const setImport = import('lodash-es/set.js');
 let set;
-const PLUGIN_NAME = "solid-typed-routes";
 const logger = createLogger("info", { prefix: `[${PLUGIN_NAME}]`, allowClearScreen: true });
 const DEFAULTS = {
   root: process.cwd(),
