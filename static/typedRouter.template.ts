@@ -66,7 +66,7 @@ export const getTypedRoute = <T extends TypedRoutes>(
       const dynamicParamKey = useReplacements(key, true)
 
       if (dynamicParamKey === key) {
-        parsedLink = parsedLink.split(new RegExp(`\\*|:${key}`)).join(params[key]) as T
+        parsedLink = parsedLink.split(new RegExp(`[\\*|:]${key}`)).join(params[key]) as T
       } else {
         parsedLink = parsedLink.split(dynamicParamKey).join(params[key]) as T
       }
