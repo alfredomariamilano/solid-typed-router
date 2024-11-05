@@ -48,7 +48,9 @@ function defineRoutes(fileRoutes) {
       return id.startsWith(o.info.id + "/");
     });
     if (!parentRoute) {
-      routes.push(route);
+      if (route.component) {
+        routes.push(route);
+      }
       return routes;
     }
     route.info.fullPath = full;
@@ -132,7 +134,8 @@ const generateTypedRoutes = async (resolvedOptions_) => {
             const isRoute = !relativePath.startsWith("..");
             if (isRoute) {
               const ext = path.extname(relativePath);
-              let routePath = relativePath.replace(new RegExp(`\\${ext}$`), "").replace(/index$/, "").replace(/\[([^\/]+)\]/g, (_, m) => {
+              const extRegex = new RegExp(`\\${ext}$`);
+              let routePath = relativePath.replace(extRegex, "").replace(/index$/, "").replace(/\[([^\/]+)\]/g, (_, m) => {
                 if (m.length > 3 && m.startsWith("...")) {
                   return `*${m.slice(3)}`;
                 }
@@ -153,18 +156,20 @@ const generateTypedRoutes = async (resolvedOptions_) => {
                 const routeParts = routePath.split("/").filter(Boolean);
                 routePath = routeParts.join("/");
                 routePath = routePath.startsWith("/") ? routePath : `/${routePath}`;
-                console.log({
-                  routePath
-                });
                 if (routePath === "/" || !routePath.endsWith("/")) {
                   set(routesObject, [...routeParts.map(useReplacements), "route"], routePath || "/");
                 }
+                const hasDefaultExport = file.exports.includes("default");
+                const endpoints = file.exports.filter((export_) => {
+                  return ["GET", "POST", "PUT", "PATCH", "DELETE"].includes(export_);
+                });
                 routesDefinitions.push({
                   path: routePath,
-                  component: `$$$lazy(() => import('${relativePathFromTypedRouter.replace(new RegExp(`\\${ext}$`), "")}'))$$$`,
+                  component: hasDefaultExport ? `$$$lazy(() => import('${relativePathFromTypedRouter.replace(extRegex, "")}'))$$$` : "",
                   info: {
-                    id: "/" + relativePath.replace(new RegExp(`\\${ext}$`), ""),
-                    filesystem: true
+                    id: "/" + relativePath.replace(extRegex, ""),
+                    filesystem: true,
+                    endpoints
                   }
                 });
                 if (file.exports.includes("searchParams") && !resolvedOptions.searchParamsSchemas[routePath]) {

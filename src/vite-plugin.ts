@@ -131,7 +131,9 @@ function defineRoutes(fileRoutes: RouteDefinition[]) {
     })
 
     if (!parentRoute) {
-      routes.push(route)
+      if (route.component) {
+        routes.push(route)
+      }
 
       return routes
     }
@@ -260,8 +262,10 @@ const generateTypedRoutes = async (resolvedOptions_: Required<TypedRoutesOptions
               // const basename = path.basename(relativePath)
               const ext = path.extname(relativePath)
 
+              const extRegex = new RegExp(`\\${ext}$`)
+
               let routePath = relativePath
-                .replace(new RegExp(`\\${ext}$`), '')
+                .replace(extRegex, '')
                 .replace(/index$/, '')
                 .replace(/\[([^\/]+)\]/g, (_, m) => {
                   if (m.length > 3 && m.startsWith('...')) {
@@ -295,21 +299,25 @@ const generateTypedRoutes = async (resolvedOptions_: Required<TypedRoutesOptions
 
                 routePath = routePath.startsWith('/') ? routePath : `/${routePath}`
 
-                console.log({
-                  routePath,
-                })
-
                 if (routePath === '/' || !routePath.endsWith('/')) {
                   set(routesObject, [...routeParts.map(useReplacements), 'route'], routePath || '/')
                 }
 
+                const hasDefaultExport = file.exports.includes('default')
+
+                const endpoints = file.exports.filter(export_ => {
+                  return ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].includes(export_)
+                })
+
                 routesDefinitions.push({
                   path: routePath,
-                  component:
-                    `$$$lazy(() => import('${relativePathFromTypedRouter.replace(new RegExp(`\\${ext}$`), '')}'))$$$` as any,
+                  component: hasDefaultExport
+                    ? `$$$lazy(() => import('${relativePathFromTypedRouter.replace(extRegex, '')}'))$$$`
+                    : '',
                   info: {
-                    id: '/' + relativePath.replace(new RegExp(`\\${ext}$`), ''),
+                    id: '/' + relativePath.replace(extRegex, ''),
                     filesystem: true,
+                    endpoints,
                   },
                 })
 
