@@ -17,10 +17,13 @@ jobs:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
           scope: '@bizarreal'
+          
       - name: Install dependencies
         run: npm install
+        
       - name: Build package
         run: npm run build
+        
       - name: Publish package
         run: npm publish
         env:
