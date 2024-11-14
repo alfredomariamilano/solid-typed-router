@@ -12,9 +12,9 @@ See a working demo on Stackblitz [HERE](https://stackblitz.com/github/alfredomar
 
 ## Installation
 
-This plugin is still in active development and it is not published on npm or other registries. To try it out, install via
+This plugin is still in active development. To try it out, install via
 ```bash
-npm i git+https://github.com/alfredomariamilano/solid-typed-router.git --save-dev
+npm i @bizarreal/vite-plugin-solid-typed-router --save-dev
 ```
 
 ## Usage
