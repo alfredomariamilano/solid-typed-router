@@ -11,5 +11,5 @@
     "noEmit": true,
     "isolatedModules": true
   },
-  "include": ["rollup.config.mjs", "**/*.gen.ts"]
+  "include": ["src/**/*", "rollup.config.mjs", "**/*.gen.ts"]
 }
