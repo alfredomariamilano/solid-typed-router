@@ -16,6 +16,7 @@ jobs:
         with:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
+          scope: '@bizarreal'
       - name: Install dependencies
         run: npm install
       - name: Build package
