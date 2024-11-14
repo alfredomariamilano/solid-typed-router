@@ -12,6 +12,8 @@ const packageJSON = require("../package.json");
 const PLUGIN_NAME = packageJSON.name;
 const esbuildPluginImport = import('rollup-plugin-esbuild');
 let esbuildPlugin;
+const getImport = import('lodash-es/get.js');
+let get;
 const setImport = import('lodash-es/set.js');
 let set;
 const logger = createLogger("info", { prefix: `[${PLUGIN_NAME}]`, allowClearScreen: true });
@@ -84,6 +86,7 @@ let typedSearchParamsTemplate = fs.readFileSync(typedSearchParamsTemplatePath, "
 let isRunning = false;
 const generateTypedRoutes = async (resolvedOptions_) => {
   esbuildPlugin = esbuildPlugin || (await esbuildPluginImport).default;
+  get = get || (await getImport).default;
   set = set || (await setImport).default;
   const start = performance.now();
   try {
@@ -128,7 +131,9 @@ const generateTypedRoutes = async (resolvedOptions_) => {
           plugins: [esbuildPlugin({ target: "esnext", logLevel: "silent" })]
         });
         const generated = await build.generate({});
-        const output = generated.output;
+        const output = generated.output.sort((a, b) => {
+          return a.facadeModuleId.length - b.facadeModuleId.length;
+        });
         for (let i = 0; i < output.length; i++) {
           const file = output[i];
           if (file.facadeModuleId) {
@@ -157,9 +162,11 @@ const generateTypedRoutes = async (resolvedOptions_) => {
               if (isValidRoute) {
                 const routeParts = routePath.split("/").filter(Boolean);
                 routePath = routeParts.join("/");
-                routePath = routePath.startsWith("/") ? routePath : `/${routePath}`;
+                if (routePath || !get(routesObject, [...routeParts.map(useReplacements), "route"])) {
+                  routePath = routePath.startsWith("/") ? routePath : `/${routePath}`;
+                }
                 if (routePath === "/" || !routePath.endsWith("/")) {
-                  set(routesObject, [...routeParts.map(useReplacements), "route"], routePath || "/");
+                  set(routesObject, [...routeParts.map(useReplacements), "route"], routePath);
                 }
                 const hasDefaultExport = file.exports.includes("default");
                 const endpoints = file.exports.filter((export_) => {

@@ -4,6 +4,7 @@ import path from 'node:path'
 import process from 'node:process'
 import url from 'node:url'
 import type { RouteDefinition as SolidRouteDefinition } from '@solidjs/router'
+import type GetType from 'lodash-es/get'
 import type SetType from 'lodash-es/set'
 import { rollup } from 'rollup'
 import type EsbuildPluginType from 'rollup-plugin-esbuild'
@@ -21,6 +22,9 @@ const PLUGIN_NAME = packageJSON.name
 
 const esbuildPluginImport = import('rollup-plugin-esbuild')
 let esbuildPlugin: typeof EsbuildPluginType
+
+const getImport = import('lodash-es/get.js')
+let get: typeof GetType
 
 const setImport = import('lodash-es/set.js')
 let set: typeof SetType
@@ -181,6 +185,7 @@ let isRunning = false
 
 const generateTypedRoutes = async (resolvedOptions_: Required<TypedRoutesOptions>) => {
   esbuildPlugin = esbuildPlugin || (await esbuildPluginImport).default
+  get = get || (await getImport).default
   set = set || (await setImport).default
 
   const start = performance.now()
@@ -252,7 +257,9 @@ const generateTypedRoutes = async (resolvedOptions_: Required<TypedRoutesOptions
 
         const generated = await build.generate({})
 
-        const output = generated.output as (typeof generated.output)[0][]
+        const output = (generated.output as (typeof generated.output)[0][]).sort((a, b) => {
+          return a.facadeModuleId!.length - b.facadeModuleId!.length
+        })
 
         for (let i = 0; i < output.length; i++) {
           const file = output[i]
@@ -301,10 +308,15 @@ const generateTypedRoutes = async (resolvedOptions_: Required<TypedRoutesOptions
 
                 routePath = routeParts.join('/')
 
-                routePath = routePath.startsWith('/') ? routePath : `/${routePath}`
+                if (
+                  routePath ||
+                  !get(routesObject, [...routeParts.map(useReplacements), 'route'])
+                ) {
+                  routePath = routePath.startsWith('/') ? routePath : `/${routePath}`
+                }
 
                 if (routePath === '/' || !routePath.endsWith('/')) {
-                  set(routesObject, [...routeParts.map(useReplacements), 'route'], routePath || '/')
+                  set(routesObject, [...routeParts.map(useReplacements), 'route'], routePath)
                 }
 
                 const hasDefaultExport = file.exports.includes('default')
