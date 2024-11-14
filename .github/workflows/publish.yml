@@ -20,4 +20,4 @@ jobs:
       - name: Build package
         run: npm run build
       - name: Publish package on jsr
-        run: npx jsr publish
+        run: npm publish
