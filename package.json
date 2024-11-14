@@ -3,6 +3,10 @@
   "version": "0.0.2",
   "description": "A vite plugin to create typed routes for Solid projects, including Solid Start.",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/alfredomariamilano/solid-typed-router"
+  },
   "author": {
     "name": "Alfredo Maria Milano",
     "email": "hi@alfredomm.com",
