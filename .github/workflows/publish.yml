@@ -21,6 +21,7 @@ jobs:
       - name: Build package
         run: npm run build
       - name: Publish package
-        run: npm publish --provenance
+        run: npm publish
         env:
+          NPM_CONFIG_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_AUTH_TOKEN }}

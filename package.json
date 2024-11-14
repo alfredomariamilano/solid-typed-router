@@ -40,7 +40,8 @@
     "valibot": "^1.0.0-beta.3"
   },
   "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
     "access": "public",
-    "registry": "https://registry.npmjs.org/"
+    "provenance": true
   }
 }
