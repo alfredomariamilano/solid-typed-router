@@ -19,5 +19,5 @@ jobs:
         run: npm install
       - name: Build package
         run: npm run build
-      - name: Publish package on jsr
+      - name: Publish package
         run: npm publish
