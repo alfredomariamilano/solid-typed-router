@@ -23,7 +23,7 @@ Add the plugin to your Vite configuration:
 ```typescript
 import { defineConfig } from 'vite';
 import solid from 'vite-plugin-solid';
-import { solidTypedRouterPlugin } from 'solid-typed-routes-plugin';
+import { solidTypedRouterPlugin } from '@bizarreal/vite-plugin-solid-typed-router';
 
 export default defineConfig({
   plugins: [
