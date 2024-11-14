@@ -114,8 +114,7 @@ const generateTypedRoutes = async (resolvedOptions_) => {
     if (routesDefinitions.length <= 0) {
       try {
         const validPathRegex = /^(\w|\d|_|\-|\.|\\|\/|\[|\]|\(|\))+$/g;
-        const routesFilesPaths = fs.readdirSync(routesPath, { recursive: true }).reduce((acc, routePath_) => {
-          const routePath = routePath_.toString();
+        const routesFilesPaths = fs.readdirSync(routesPath, { recursive: true, encoding: "utf-8" }).reduce((acc, routePath) => {
           const absolutePath = path.resolve(routesPath, routePath);
           if (fs.lstatSync(absolutePath).isDirectory()) return acc;
           if (!routePath.match(validPathRegex)?.[0]) {

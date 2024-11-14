@@ -227,9 +227,8 @@ const generateTypedRoutes = async (resolvedOptions_: Required<TypedRoutesOptions
         const validPathRegex = /^(\w|\d|_|\-|\.|\\|\/|\[|\]|\(|\))+$/g
 
         const routesFilesPaths = fs
-          .readdirSync(routesPath, { recursive: true })
-          .reduce((acc, routePath_) => {
-            const routePath = routePath_.toString()
+          .readdirSync(routesPath, { recursive: true, encoding: 'utf-8' })
+          .reduce((acc, routePath) => {
             const absolutePath = path.resolve(routesPath, routePath)
 
             if (fs.lstatSync(absolutePath).isDirectory()) return acc
