@@ -5,6 +5,7 @@ var node_module = require('node:module');
 var path = require('node:path');
 var process = require('node:process');
 var url = require('node:url');
+var set = require('lodash-es/set.js');
 var rollup = require('rollup');
 var vite = require('vite');
 
@@ -15,10 +16,6 @@ const packageJSON = require$1("../package.json");
 const PLUGIN_NAME = packageJSON.name;
 const esbuildPluginImport = import('rollup-plugin-esbuild');
 let esbuildPlugin;
-const getImport = import('lodash-es/get.js');
-let get;
-const setImport = import('lodash-es/set.js');
-let set;
 const logger = vite.createLogger("info", { prefix: `[${PLUGIN_NAME}]`, allowClearScreen: true });
 const DEFAULTS = {
   root: process.cwd(),
@@ -52,16 +49,18 @@ const resolveOptions = (options) => {
 };
 function defineRoutes(fileRoutes) {
   function processRoute(routes, route, id, full) {
+    route.info.id = id;
+    route.info.fullPath = full;
     const parentRoute = Object.values(routes).find((o) => {
       return id.startsWith(o.info.id + "/");
     });
     if (!parentRoute) {
       if (route.component) {
+        route.path = route.path.replace(/\/\([^)/]+\)/g, "").replace(/\([^)/]+\)/g, "");
         routes.push(route);
       }
       return routes;
     }
-    route.info.fullPath = full;
     route.path = route.path.replace(new RegExp(`^${parentRoute.path}`), "");
     processRoute(
       parentRoute.children || (parentRoute.children = []),
@@ -89,8 +88,6 @@ let typedSearchParamsTemplate = fs.readFileSync(typedSearchParamsTemplatePath, "
 let isRunning = false;
 const generateTypedRoutes = async (resolvedOptions_) => {
   esbuildPlugin = esbuildPlugin || (await esbuildPluginImport).default;
-  get = get || (await getImport).default;
-  set = set || (await setImport).default;
   const start = performance.now();
   try {
     const resolvedOptions = structuredClone(resolvedOptions_);
@@ -137,6 +134,7 @@ const generateTypedRoutes = async (resolvedOptions_) => {
         const output = generated.output.sort((a, b) => {
           return a.facadeModuleId.length - b.facadeModuleId.length;
         });
+        let foundRoot = false;
         for (let i = 0; i < output.length; i++) {
           const file = output[i];
           if (file.facadeModuleId) {
@@ -164,12 +162,18 @@ const generateTypedRoutes = async (resolvedOptions_) => {
               const isValidRoute = relativePathFromTypedRouter.match(/\.ts(x)?$/g);
               if (isValidRoute) {
                 const routeParts = routePath.split("/").filter(Boolean);
+                const routePartsReplaced = routeParts.map(useReplacements).filter(Boolean);
+                const routePartsReplacedWithRoute = [...routePartsReplaced, "route"];
                 routePath = routeParts.join("/");
-                if (routePath || !get(routesObject, [...routeParts.map(useReplacements), "route"])) {
-                  routePath = routePath.startsWith("/") ? routePath : `/${routePath}`;
+                if (!routePath && !foundRoot) {
+                  foundRoot = true;
+                  routePath = "/";
                 }
-                if (routePath === "/" || !routePath.endsWith("/")) {
-                  set(routesObject, [...routeParts.map(useReplacements), "route"], routePath);
+                if (routePath) {
+                  routePath = routePath.startsWith("/") ? routePath : `/${routePath}`;
+                  if (routePath === "/" || !routePath.endsWith("/")) {
+                    set(routesObject, routePartsReplacedWithRoute, routePath);
+                  }
                 }
                 const hasDefaultExport = file.exports.includes("default");
                 const endpoints = file.exports.filter((export_) => {
@@ -220,25 +224,26 @@ const generateTypedRoutes = async (resolvedOptions_) => {
     }
     const { StaticTypedRoutes, DynamicTypedRoutes, DynamicTypedRoutesParams } = routesDefinitions.reduce(
       (acc, route) => {
-        if (!route.path || route.path !== "/" && route.path.endsWith("/")) {
+        const routePath = route.path;
+        if (!routePath || routePath !== "/" && routePath.endsWith("/")) {
           return acc;
         }
-        const StaticOrDynamic = route.path.includes(":") || route.path.includes("*") ? "DynamicTypedRoutes" : "StaticTypedRoutes";
-        acc[StaticOrDynamic] = acc[StaticOrDynamic].split(" | ").concat(`'${route.path}'`).join(" | ");
+        const StaticOrDynamic = routePath.includes(":") || routePath.includes("*") ? "DynamicTypedRoutes" : "StaticTypedRoutes";
+        acc[StaticOrDynamic] = acc[StaticOrDynamic].split(" | ").concat(`'${routePath}'`).join(" | ");
         if (StaticOrDynamic === "DynamicTypedRoutes") {
-          const routeParams = acc.DynamicTypedRoutesParams[route.path] || [];
-          const params = route.path.match(/(:|\*)([^/]+)/g) || [];
+          const routeParams = acc.DynamicTypedRoutesParams[routePath] || [];
+          const params = routePath.match(/(:|\*)([^/]+)/g) || [];
           for (let i = 0; i < params.length; i++) {
             const param = params[i];
             const parsedParam = useReplacements(param);
             if (routeParams.includes(parsedParam)) {
               throwError(
-                `Duplicate route parameter" ${param}" (parsed: "${parsedParam}") in "${route.path}"`
+                `Duplicate route parameter" ${param}" (parsed: "${parsedParam}") in "${routePath}"`
               );
             }
             routeParams.push(parsedParam);
           }
-          acc.DynamicTypedRoutesParams[route.path] = routeParams;
+          acc.DynamicTypedRoutesParams[routePath] = routeParams;
         }
         return acc;
       },

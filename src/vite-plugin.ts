@@ -4,8 +4,7 @@ import path from 'node:path'
 import process from 'node:process'
 import url from 'node:url'
 import type { RouteDefinition as SolidRouteDefinition } from '@solidjs/router'
-import type GetType from 'lodash-es/get'
-import type SetType from 'lodash-es/set'
+import set from 'lodash-es/set.js'
 import { rollup } from 'rollup'
 import type EsbuildPluginType from 'rollup-plugin-esbuild'
 import type { BaseIssue, BaseSchema } from 'valibot'
@@ -22,12 +21,6 @@ const PLUGIN_NAME = packageJSON.name
 
 const esbuildPluginImport = import('rollup-plugin-esbuild')
 let esbuildPlugin: typeof EsbuildPluginType
-
-const getImport = import('lodash-es/get.js')
-let get: typeof GetType
-
-const setImport = import('lodash-es/set.js')
-let set: typeof SetType
 
 const logger = createLogger('info', { prefix: `[${PLUGIN_NAME}]`, allowClearScreen: true })
 
@@ -135,19 +128,23 @@ function defineRoutes(fileRoutes: RouteDefinition[]) {
     id: string,
     full: string,
   ) {
+    route.info.id = id
+    route.info.fullPath = full
+
     const parentRoute = Object.values(routes).find(o => {
       return id.startsWith(o.info!.id + '/')
     })
 
     if (!parentRoute) {
       if (route.component) {
+        route.path = route.path.replace(/\/\([^)/]+\)/g, '').replace(/\([^)/]+\)/g, '')
+
         routes.push(route)
       }
 
       return routes
     }
 
-    route!.info!.fullPath = full
     route.path = route.path.replace(new RegExp(`^${parentRoute.path}`), '')
 
     processRoute(
@@ -185,8 +182,6 @@ let isRunning = false
 
 const generateTypedRoutes = async (resolvedOptions_: Required<TypedRoutesOptions>) => {
   esbuildPlugin = esbuildPlugin || (await esbuildPluginImport).default
-  get = get || (await getImport).default
-  set = set || (await setImport).default
 
   const start = performance.now()
 
@@ -261,6 +256,8 @@ const generateTypedRoutes = async (resolvedOptions_: Required<TypedRoutesOptions
           return a.facadeModuleId!.length - b.facadeModuleId!.length
         })
 
+        let foundRoot = false
+
         for (let i = 0; i < output.length; i++) {
           const file = output[i]
 
@@ -306,17 +303,23 @@ const generateTypedRoutes = async (resolvedOptions_: Required<TypedRoutesOptions
               if (isValidRoute) {
                 const routeParts = routePath.split('/').filter(Boolean)
 
+                const routePartsReplaced = routeParts.map(useReplacements).filter(Boolean)
+
+                const routePartsReplacedWithRoute = [...routePartsReplaced, 'route']
+
                 routePath = routeParts.join('/')
 
-                if (
-                  routePath ||
-                  !get(routesObject, [...routeParts.map(useReplacements), 'route'])
-                ) {
-                  routePath = routePath.startsWith('/') ? routePath : `/${routePath}`
+                if (!routePath && !foundRoot) {
+                  foundRoot = true
+                  routePath = '/'
                 }
 
-                if (routePath === '/' || !routePath.endsWith('/')) {
-                  set(routesObject, [...routeParts.map(useReplacements), 'route'], routePath)
+                if (routePath) {
+                  routePath = routePath.startsWith('/') ? routePath : `/${routePath}`
+
+                  if (routePath === '/' || !routePath.endsWith('/')) {
+                    set(routesObject, routePartsReplacedWithRoute, routePath)
+                  }
                 }
 
                 const hasDefaultExport = file.exports.includes('default')
@@ -389,24 +392,26 @@ const generateTypedRoutes = async (resolvedOptions_: Required<TypedRoutesOptions
     const { StaticTypedRoutes, DynamicTypedRoutes, DynamicTypedRoutesParams } =
       routesDefinitions.reduce(
         (acc, route) => {
-          if (!route.path || (route.path !== '/' && route.path.endsWith('/'))) {
+          const routePath = route.path
+
+          if (!routePath || (routePath !== '/' && routePath.endsWith('/'))) {
             return acc
           }
 
           const StaticOrDynamic =
-            route.path.includes(':') || route.path.includes('*')
+            routePath.includes(':') || routePath.includes('*')
               ? 'DynamicTypedRoutes'
               : 'StaticTypedRoutes'
 
           acc[StaticOrDynamic] = acc[StaticOrDynamic]
             .split(' | ')
-            .concat(`'${route.path}'`)
+            .concat(`'${routePath}'`)
             .join(' | ')
 
           if (StaticOrDynamic === 'DynamicTypedRoutes') {
-            const routeParams = acc.DynamicTypedRoutesParams[route.path] || []
+            const routeParams = acc.DynamicTypedRoutesParams[routePath] || []
 
-            const params = (route.path as string).match(/(:|\*)([^/]+)/g) || []
+            const params = (routePath as string).match(/(:|\*)([^/]+)/g) || []
 
             for (let i = 0; i < params.length; i++) {
               const param = params[i]
@@ -415,14 +420,14 @@ const generateTypedRoutes = async (resolvedOptions_: Required<TypedRoutesOptions
 
               if (routeParams.includes(parsedParam)) {
                 throwError(
-                  `Duplicate route parameter" ${param}" (parsed: "${parsedParam}") in "${route.path}"`,
+                  `Duplicate route parameter" ${param}" (parsed: "${parsedParam}") in "${routePath}"`,
                 )
               }
 
               routeParams.push(parsedParam)
             }
 
-            acc.DynamicTypedRoutesParams[route.path] = routeParams
+            acc.DynamicTypedRoutesParams[routePath] = routeParams
           }
 
           return acc
