@@ -1,6 +1,6 @@
 {
   "name": "@bizarreal/vite-plugin-solid-typed-router",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "A vite plugin to create typed routes for Solid projects, including Solid Start.",
   "type": "module",
   "repository": {
@@ -31,9 +31,9 @@
   "license": "MIT",
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
-    "@types/node": "^22.8.1",
+    "@types/node": "^22.10.1",
     "rollup-plugin-dts": "^6.1.1",
-    "vite": "^5.4.10"
+    "vite": "^6.0.2"
   },
   "peerDependencies": {
     "@solidjs/router": ">= 0.14.0 < 1",
