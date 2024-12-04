@@ -17,7 +17,7 @@ const logger = createLogger("info", { prefix: `[${PLUGIN_NAME}]`, allowClearScre
 const DEFAULTS = {
   root: process.cwd(),
   routesPath: "src/routes",
-  typedRouterPath: "src/typedRouter.gen.ts",
+  typedRouterPath: "src/typedRouter.gen.tsx",
   typedSearchParamsPath: "src/typedSearchParams.gen.ts",
   routesDefinitions: [],
   searchParamsSchemas: {},
@@ -70,10 +70,10 @@ function defineRoutes(fileRoutes) {
   return fileRoutes.sort((a, b) => a.path.length - b.path.length).reduce((prevRoutes, route) => {
     route.info = route.info || {};
     route.info.id = route.info.id || route.path;
-    return processRoute(prevRoutes, route, route.info.id, route.path);
+    return processRoute(prevRoutes, route, route.info.id, route.info.id);
   }, []);
 }
-const typedRoutesTemplatePath = path.resolve(dirname, "..", "static", "typedRouter.template.ts");
+const typedRoutesTemplatePath = path.resolve(dirname, "..", "static", "typedRouter.template.tsx");
 let typedRoutesTemplate = fs.readFileSync(typedRoutesTemplatePath, "utf-8");
 const typedSearchParamsTemplatePath = path.resolve(
   dirname,
@@ -131,7 +131,6 @@ const generateTypedRoutes = async (resolvedOptions_) => {
         const output = generated.output.sort((a, b) => {
           return a.facadeModuleId.length - b.facadeModuleId.length;
         });
-        let foundRoot = false;
         for (let i = 0; i < output.length; i++) {
           const file = output[i];
           if (file.facadeModuleId) {
@@ -156,16 +155,16 @@ const generateTypedRoutes = async (resolvedOptions_) => {
               if (!relativePathFromTypedRouter.startsWith(".")) {
                 relativePathFromTypedRouter = "./" + relativePathFromTypedRouter;
               }
-              const isValidRoute = relativePathFromTypedRouter.match(/\.ts(x)?$/g);
+              const isValidRoute = relativePathFromTypedRouter.match(/\.tsx$/g);
               if (isValidRoute) {
                 const routeParts = routePath.split("/").filter(Boolean);
-                const routePartsReplaced = routeParts.map(useReplacements).filter(Boolean);
+                const routePartsReplaced = routeParts.map(useReplacements).filter(Boolean).map((routePart) => {
+                  return routePart.replace(/-+[\w|\d]/g, (match) => {
+                    return match.replaceAll("-", "").toUpperCase();
+                  });
+                });
                 const routePartsReplacedWithRoute = [...routePartsReplaced, "route"];
                 routePath = routeParts.join("/");
-                if (!routePath && !foundRoot) {
-                  foundRoot = true;
-                  routePath = "/";
-                }
                 if (routePath) {
                   routePath = routePath.startsWith("/") ? routePath : `/${routePath}`;
                   if (routePath === "/" || !routePath.endsWith("/")) {
@@ -250,7 +249,15 @@ const generateTypedRoutes = async (resolvedOptions_) => {
         DynamicTypedRoutesParams: {}
       }
     );
-    const routes = JSON.stringify(defineRoutes(structuredClone(routesDefinitions)), null, 2).replace(/('|"|`)?\${3}('|"|`)?/g, "");
+    const routes = JSON.stringify(
+      defineRoutes(
+        structuredClone(routesDefinitions).sort((a, b) => {
+          return a.info.id.length - b.info.id.length;
+        })
+      ),
+      null,
+      2
+    ).replace(/('|"|`)?\${3}('|"|`)?/g, "");
     const routesMap = JSON.stringify(routesObject, null, 2);
     const searchParamsImports = searchParamsImportsArray.join("\n");
     const searchParamsExports = searchParamsExportsArray.join("\n");

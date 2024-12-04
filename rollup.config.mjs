@@ -31,7 +31,7 @@ const bundle = config => ({
 const esbuildPlugin = esbuild({ target: 'esnext' })
 
 export default [
-  // Output for NodeJS\
+  // Output for NodeJS
   bundle({
     plugins: [esbuildPlugin],
     output: [

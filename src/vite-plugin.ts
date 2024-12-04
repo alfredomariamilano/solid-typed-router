@@ -80,7 +80,7 @@ type TypedRoutesOptions = {
 const DEFAULTS: Partial<TypedRoutesOptions> = {
   root: process.cwd(),
   routesPath: 'src/routes',
-  typedRouterPath: 'src/typedRouter.gen.ts',
+  typedRouterPath: 'src/typedRouter.gen.tsx',
   typedSearchParamsPath: 'src/typedSearchParams.gen.ts',
   routesDefinitions: [],
   searchParamsSchemas: {},
@@ -153,6 +153,7 @@ function defineRoutes(fileRoutes: RouteDefinition[]) {
       id.slice(parentRoute.info!.id.length),
       full,
     )
+
     return routes
   }
   return fileRoutes
@@ -161,11 +162,11 @@ function defineRoutes(fileRoutes: RouteDefinition[]) {
       route.info = route.info || {}
       route.info.id = route.info.id || route.path
 
-      return processRoute(prevRoutes, route, route.info!.id, route.path)
+      return processRoute(prevRoutes, route, route.info!.id, route.info!.id)
     }, [] as RouteDefinition[])
 }
 
-const typedRoutesTemplatePath = path.resolve(dirname, '..', 'static', 'typedRouter.template.ts')
+const typedRoutesTemplatePath = path.resolve(dirname, '..', 'static', 'typedRouter.template.tsx')
 
 let typedRoutesTemplate = fs.readFileSync(typedRoutesTemplatePath, 'utf-8')
 
@@ -256,8 +257,6 @@ const generateTypedRoutes = async (resolvedOptions_: Required<TypedRoutesOptions
           return a.facadeModuleId!.length - b.facadeModuleId!.length
         })
 
-        let foundRoot = false
-
         for (let i = 0; i < output.length; i++) {
           const file = output[i]
 
@@ -298,21 +297,24 @@ const generateTypedRoutes = async (resolvedOptions_: Required<TypedRoutesOptions
                 relativePathFromTypedRouter = './' + relativePathFromTypedRouter
               }
 
-              const isValidRoute = relativePathFromTypedRouter.match(/\.ts(x)?$/g)
+              // const isValidRoute = relativePathFromTypedRouter.match(/\.ts(x)?$/g)
+              const isValidRoute = relativePathFromTypedRouter.match(/\.tsx$/g)
 
               if (isValidRoute) {
                 const routeParts = routePath.split('/').filter(Boolean)
 
-                const routePartsReplaced = routeParts.map(useReplacements).filter(Boolean)
+                const routePartsReplaced = routeParts
+                  .map(useReplacements)
+                  .filter(Boolean)
+                  .map(routePart => {
+                    return routePart.replace(/-+[\w|\d]/g, match => {
+                      return match.replaceAll('-', '').toUpperCase()
+                    })
+                  })
 
                 const routePartsReplacedWithRoute = [...routePartsReplaced, 'route']
 
                 routePath = routeParts.join('/')
-
-                if (!routePath && !foundRoot) {
-                  foundRoot = true
-                  routePath = '/'
-                }
 
                 if (routePath) {
                   routePath = routePath.startsWith('/') ? routePath : `/${routePath}`
@@ -439,7 +441,15 @@ const generateTypedRoutes = async (resolvedOptions_: Required<TypedRoutesOptions
         },
       )
 
-    const routes = JSON.stringify(defineRoutes(structuredClone(routesDefinitions)), null, 2)
+    const routes = JSON.stringify(
+      defineRoutes(
+        structuredClone(routesDefinitions).sort((a, b) => {
+          return a.info.id.length - b.info.id.length
+        }),
+      ),
+      null,
+      2,
+    )
       // replace the recognizable string with the actual lazy import
       .replace(/('|"|`)?\${3}('|"|`)?/g, '')
     // https://stackoverflow.com/a/11233515/10019771

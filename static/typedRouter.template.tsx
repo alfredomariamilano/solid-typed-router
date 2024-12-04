@@ -162,7 +162,8 @@ export function TypedLink<T extends TypedRoutes>(props: TypedLinkProps<T>): JSX.
     return getTypedRoute(link.href, link.params, link.search)
   }
 
-  return A({ ...rest, href: href() })
+  // @ts-ignore
+  return <A {...rest} href={href()} />
 }
 
 type SearchParamsGeneric = Record<any, any>
