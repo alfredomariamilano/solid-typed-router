@@ -2,11 +2,12 @@
 $$$searchParamsImports$$$
 import type { MatchFilters, NavigateOptions, Params, RouteDefinition } from '@solidjs/router'
 import { A, useMatch, useNavigate, useParams, useSearchParams } from '@solidjs/router'
-import mergeWith from 'lodash-es/mergeWith'
 import type { Accessor, ComponentProps, JSX } from 'solid-js'
 import { createMemo, lazy, splitProps } from 'solid-js'
 import type { BaseIssue, BaseSchema, InferInput } from 'valibot'
 import { safeParse } from 'valibot'
+import { type Options as DeepMergeOptions, default as _deepMerge } from 'deepmerge'
+
 // @ts-ignore
 export const replacements: Record<string, string> = $$$replacements$$$ as const
 // @ts-ignore
@@ -36,7 +37,7 @@ interface TypedNavigator {
   (delta: number): void
 }
 
-export const useReplacements = (string: string, flip?: boolean) => {
+export function useReplacements (string: string, flip?: boolean) {
   const maybeFlippedReplacements = flip
     ? Object.fromEntries(Object.entries(replacements).map(([a, b]) => [b, a]))
     : replacements
@@ -52,13 +53,13 @@ export const useReplacements = (string: string, flip?: boolean) => {
     }, string)
 }
 
-export const getTypedRoute = <T extends TypedRoutes>(
+export function getTypedRoute<T extends TypedRoutes>(
   href: T,
   params: T extends DynamicTypedRoutes ? DynamicTypedRouteParams<T> : never,
   search?: T extends SearchParamsRoutes
     ? InferInput<(typeof searchParamsSchemas)[T]>
     : SearchParamsGeneric,
-) => {
+) {
   let parsedLink = href
 
   if (params) {
@@ -91,7 +92,7 @@ export const getTypedRoute = <T extends TypedRoutes>(
   return parsedLink
 }
 
-export const useTypedNavigate = () => {
+export function useTypedNavigate  ()  {
   const navigate = useNavigate()
 
   const typedNavigate: TypedNavigator = (...args) => {
@@ -115,16 +116,16 @@ export const useTypedNavigate = () => {
   return typedNavigate
 }
 
-export const useTypedMatch = <T extends TypedRoutes>(
+export function useTypedMatch <T extends TypedRoutes>(
   path: () => T,
   matchFilters?: MatchFilters<T>,
-) => {
+) {
   return useMatch(path, matchFilters) as unknown as Accessor<
     { path: T; params: Params[T] } | undefined
   >
 }
 
-export const useTypedParams = <const T extends DynamicTypedRoutes>(route: T) => {
+export function useTypedParams <const T extends DynamicTypedRoutes>(route: T)  {
   const params = useParams<DynamicTypedRouteParams<T>>()
 
   const typedParams = createMemo(() => {
@@ -247,11 +248,7 @@ export function useTypedSearchParams<const T extends SearchParamsRoutes>(schema:
     return setSearchParams(
       Object.entries(
         parse(
-          mergeWith(typedSearchParams(), params, (source, destination) => {
-            if (Array.isArray(source)) {
-              return destination
-            }
-          }),
+          deepMerge(typedSearchParams(), params),
         ),
       ).reduce((acc, [key, value]) => {
         try {
@@ -271,6 +268,34 @@ export function useTypedSearchParams<const T extends SearchParamsRoutes>(schema:
   }
 
   return [typedSearchParams, setTypedSearchParams] as const
+}
+
+const deepMergeOptions: DeepMergeOptions = {
+  arrayMerge: (_targetArray, sourceArray, options) => {
+    const destination = sourceArray.slice()
+
+    sourceArray.forEach((item, index) => {
+      if (typeof destination[index] === 'undefined') {
+        destination[index] = options?.cloneUnlessOtherwiseSpecified(item, options)
+      } else if (options?.isMergeableObject(item)) {
+        destination[index] = deepMerge(sourceArray[index], item, options)
+      } else if (sourceArray.indexOf(item) === -1) {
+        destination.push(item)
+      }
+    })
+
+    return destination
+  },
+  clone: true,
+  
+}
+
+function deepMerge(
+  x: object = {},
+  y: object = {},
+  options = deepMergeOptions,
+) {
+  return _deepMerge(x, y, options)
 }
 
 declare module '@solidjs/router' {
