@@ -271,20 +271,21 @@ const generateTypedRoutes = async (resolvedOptions_: Required<TypedRoutesOptions
 
               const extRegex = new RegExp(`\\${ext}$`)
 
-              let routePath = relativePath
-                .replace(extRegex, '')
-                .replace(/index$/, '')
-                .replace(/\[([^\/]+)\]/g, (_, m) => {
-                  if (m.length > 3 && m.startsWith('...')) {
-                    return `*${m.slice(3)}`
-                  }
-                  if (m.length > 2 && m.startsWith('[') && m.endsWith(']')) {
-                    return `:${m.slice(1, -1)}?`
-                  }
-                  return `:${m}`
-                })
-                .replace(/\/\([^)/]+\)/g, '')
-                .replace(/\([^)/]+\)/g, '')
+              let routePath =
+                relativePath
+                  .replace(extRegex, '')
+                  .replace(/index$/, '')
+                  .replace(/\[([^\/]+)\]/g, (_, m) => {
+                    if (m.length > 3 && m.startsWith('...')) {
+                      return `*${m.slice(3)}`
+                    }
+                    if (m.length > 2 && m.startsWith('[') && m.endsWith(']')) {
+                      return `:${m.slice(1, -1)}?`
+                    }
+                    return `:${m}`
+                  })
+                  .replace(/\/\([^)/]+\)/g, '')
+                  .replace(/\([^)/]+\)/g, '') || '/'
 
               let relativePathFromTypedRouter = path
                 .relative(

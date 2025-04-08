@@ -150,7 +150,7 @@ const generateTypedRoutes = async (resolvedOptions_) => {
                   return `:${m.slice(1, -1)}?`;
                 }
                 return `:${m}`;
-              }).replace(/\/\([^)/]+\)/g, "").replace(/\([^)/]+\)/g, "");
+              }).replace(/\/\([^)/]+\)/g, "").replace(/\([^)/]+\)/g, "") || "/";
               let relativePathFromTypedRouter = path.relative(
                 path.dirname(resolvedOptions.typedRouterPath),
                 path.join(resolvedOptions.routesPath, relativePath)
