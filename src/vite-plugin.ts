@@ -314,7 +314,7 @@ const generateTypedRoutes = async (resolvedOptions_: Required<TypedRoutesOptions
 
                 const routePartsReplacedWithRoute = [...routePartsReplaced, 'route']
 
-                routePath = routeParts.join('/')
+                routePath = routePath === '/' ? routePath : routeParts.join('/')
 
                 if (routePath) {
                   routePath = routePath.startsWith('/') ? routePath : `/${routePath}`

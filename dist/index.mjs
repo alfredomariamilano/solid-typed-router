@@ -164,7 +164,7 @@ const generateTypedRoutes = async (resolvedOptions_) => {
                   });
                 });
                 const routePartsReplacedWithRoute = [...routePartsReplaced, "route"];
-                routePath = routeParts.join("/");
+                routePath = routePath === "/" ? routePath : routeParts.join("/");
                 if (routePath) {
                   routePath = routePath.startsWith("/") ? routePath : `/${routePath}`;
                   if (routePath === "/" || !routePath.endsWith("/")) {
