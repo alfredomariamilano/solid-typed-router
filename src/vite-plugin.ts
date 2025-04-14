@@ -5,8 +5,7 @@ import process from 'node:process'
 import url from 'node:url'
 import type { RouteDefinition as SolidRouteDefinition } from '@solidjs/router'
 import set from 'lodash-es/set.js'
-import { rollup } from 'rollup'
-import type EsbuildPluginType from 'rollup-plugin-esbuild'
+import { rolldown } from 'rolldown'
 import type { BaseIssue, BaseSchema } from 'valibot'
 import type { Plugin, UserConfig } from 'vite'
 import { createLogger } from 'vite'
@@ -18,9 +17,6 @@ const require = createRequire(import.meta.url)
 const packageJSON = require('../package.json')
 
 const PLUGIN_NAME = packageJSON.name
-
-const esbuildPluginImport = import('rollup-plugin-esbuild')
-let esbuildPlugin: typeof EsbuildPluginType
 
 const logger = createLogger('info', { prefix: `[${PLUGIN_NAME}]`, allowClearScreen: true })
 
@@ -182,8 +178,6 @@ let typedSearchParamsTemplate = fs.readFileSync(typedSearchParamsTemplatePath, '
 let isRunning = false
 
 const generateTypedRoutes = async (resolvedOptions_: Required<TypedRoutesOptions>) => {
-  esbuildPlugin = esbuildPlugin || (await esbuildPluginImport).default
-
   const start = performance.now()
 
   try {
@@ -245,10 +239,9 @@ const generateTypedRoutes = async (resolvedOptions_: Required<TypedRoutesOptions
             return acc
           }, [] as string[])
 
-        const build = await rollup({
+        const build = await rolldown({
           input: routesFilesPaths,
           logLevel: 'silent',
-          plugins: [esbuildPlugin({ target: 'esnext', logLevel: 'silent' })],
         })
 
         const generated = await build.generate({})
