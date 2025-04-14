@@ -633,13 +633,13 @@ export const solidTypedRouterPlugin = (
 
   const resolvedOptions = resolveOptions(options)
 
+  generateTypedRoutes(resolvedOptions)
+
   return {
     name: PLUGIN_NAME,
     enforce: 'pre',
     buildStart() {
       pluginDev && this.addWatchFile(pluginFilesDir)
-
-      generateTypedRoutes(resolvedOptions)
     },
     config(config) {
       return vinxiCompatConfig(config)

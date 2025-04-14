@@ -299,12 +299,12 @@ const solidTypedRouterPlugin = (options = DEFAULTS) => {
 	const pluginDev = !!process.env.PLUGIN_DEV;
 	pluginDev && logger.error("Development mode", { timestamp: true });
 	const resolvedOptions = resolveOptions(options);
+	generateTypedRoutes(resolvedOptions);
 	return {
 		name: PLUGIN_NAME,
 		enforce: "pre",
 		buildStart() {
 			pluginDev && this.addWatchFile(pluginFilesDir);
-			generateTypedRoutes(resolvedOptions);
 		},
 		config(config) {
 			return vinxiCompatConfig(config);
