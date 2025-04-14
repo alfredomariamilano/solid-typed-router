@@ -105,7 +105,18 @@ const generateTypedRoutes = async (resolvedOptions_) => {
 				logLevel: "silent"
 			});
 			const generated = await build.generate({});
-			const output = generated.output.sort((a, b) => {
+			const output = generated.output.reduce((acc, file) => {
+				if (!file.facadeModuleId) {
+					const facadeModuleId = file.moduleIds.findLast((moduleId) => {
+						return moduleId.startsWith(routesPath);
+					});
+					if (facadeModuleId) {
+						file.facadeModuleId = facadeModuleId;
+						acc.push(file);
+					}
+				} else acc.push(file);
+				return acc;
+			}, []).sort((a, b) => {
 				return a.facadeModuleId.length - b.facadeModuleId.length;
 			});
 			for (let i = 0; i < output.length; i++) {

@@ -246,9 +246,30 @@ const generateTypedRoutes = async (resolvedOptions_: Required<TypedRoutesOptions
 
         const generated = await build.generate({})
 
-        const output = (generated.output as (typeof generated.output)[0][]).sort((a, b) => {
-          return a.facadeModuleId!.length - b.facadeModuleId!.length
-        })
+        const output = (generated.output as (typeof generated.output)[0][])
+          .reduce(
+            (acc, file) => {
+              if (!file.facadeModuleId) {
+                const facadeModuleId = file.moduleIds.findLast(moduleId => {
+                  return moduleId.startsWith(routesPath)
+                })
+
+                if (facadeModuleId) {
+                  file.facadeModuleId = facadeModuleId
+
+                  acc.push(file)
+                }
+              } else {
+                acc.push(file)
+              }
+
+              return acc
+            },
+            [] as (typeof generated.output)[0][],
+          )
+          .sort((a, b) => {
+            return a.facadeModuleId!.length - b.facadeModuleId!.length
+          })
 
         for (let i = 0; i < output.length; i++) {
           const file = output[i]
